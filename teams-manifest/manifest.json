@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "REPLACE-WITH-NEW-GUID",
+  "packageName": "com.yourorg.officebooking",
+  "developer": {
+    "name": "Your Org",
+    "websiteUrl": "https://booking.example.com",
+    "privacyUrl": "https://booking.example.com/privacy",
+    "termsOfUseUrl": "https://booking.example.com/terms"
+  },
+  "name": {
+    "short": "Booking Ruangan",
+    "full": "Sistem Booking Ruangan Kantor"
+  },
+  "description": {
+    "short": "Booking ruangan kantor langsung dari Teams",
+    "full": "Lihat status ruangan, jadwal hari ini, dan buat booking ruangan kantor tanpa keluar dari Microsoft Teams."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#18181B",
+  "staticTabs": [
+    {
+      "entityId": "officeBookingTeams",
+      "name": "Booking",
+      "contentUrl": "https://booking.example.com/teams",
+      "websiteUrl": "https://booking.example.com/teams",
+      "scopes": ["personal"]
+    }
+  ],
+  "webApplicationInfo": {
+    "id": "REPLACE-WITH-AZURE_AD_CLIENT_ID",
+    "resource": "api://booking.example.com/REPLACE-WITH-AZURE_AD_CLIENT_ID"
+  },
+  "validDomains": ["booking.example.com"],
+  "permissions": ["identity"]
+}

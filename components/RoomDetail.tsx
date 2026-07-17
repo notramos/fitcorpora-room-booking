@@ -290,15 +290,11 @@ export default function RoomDetail({
                       key={b.id}
                       className={`flex items-start gap-4 rounded-lg border px-4 py-3 ${
                         isCurrent
-                          ? "border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10"
+                          ? "border-foreground/20 bg-accent"
                           : "bg-muted/40"
                       } ${isPast ? "opacity-55" : ""}`}
                     >
-                      <span
-                        className={`w-28 shrink-0 font-mono text-sm font-medium tabular-nums ${
-                          isCurrent ? "text-red-700 dark:text-red-400" : ""
-                        }`}
-                      >
+                      <span className="w-28 shrink-0 font-mono text-sm font-medium tabular-nums">
                         {b.startTime}–{b.endTime}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -310,7 +306,7 @@ export default function RoomDetail({
                         </p>
                       </div>
                       {isCurrent && (
-                        <span className="shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
                           Berlangsung
                         </span>
                       )}

@@ -2,55 +2,49 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { getHourSlots, overlaps, toMinutes } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground read-only:bg-muted read-only:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
 const labelClass = "text-sm font-medium leading-none";
 
-// Business hours for the slot picker (07:00 – 21:00, hourly).
-const START_HOUR = 7;
-const END_HOUR = 21;
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function hh(hour: number): string {
-  return `${String(hour).padStart(2, "0")}:00`;
-}
-
-function overlaps(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string
-): boolean {
-  return (
-    toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd)
-  );
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export default function BookingModal({
   room,
+  initialStartTime,
+  initialEndTime,
   onClose,
   onBooked,
 }: {
   room: Room;
+  initialStartTime?: string;
+  initialEndTime?: string;
   onClose: () => void;
   onBooked: (booking: Booking) => void;
 }) {
   const { data: session } = useSession();
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("10:00");
+  const [date, setDate] = useState(todayStr);
+  const [startTime, setStartTime] = useState(initialStartTime ?? "09:00");
+  const [endTime, setEndTime] = useState(initialEndTime ?? "10:00");
   const [purpose, setPurpose] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // TEMP: while auth is disabled there's no session, so let the tester type these in.
   const [bookerName, setBookerName] = useState(session?.user?.name ?? "");
   const [bookerEmail, setBookerEmail] = useState(session?.user?.email ?? "");
+
+  // Used to disable already-passed hourly slots when the selected date is
+  // today. Refreshed periodically in case the modal stays open across an
+  // hour boundary.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [existing, setExisting] = useState<Booking[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
@@ -87,22 +81,7 @@ export default function BookingModal({
   }, [onClose]);
 
   // Hourly slots with their booked state + who booked them.
-  const slots = useMemo(() => {
-    const result: {
-      start: string;
-      end: string;
-      booking: Booking | null;
-    }[] = [];
-    for (let h = START_HOUR; h < END_HOUR; h++) {
-      const start = hh(h);
-      const end = hh(h + 1);
-      const booking =
-        existing.find((b) => overlaps(start, end, b.startTime, b.endTime)) ??
-        null;
-      result.push({ start, end, booking });
-    }
-    return result;
-  }, [existing]);
+  const slots = useMemo(() => getHourSlots(existing), [existing]);
 
   const sortedBookings = useMemo(
     () =>
@@ -121,8 +100,18 @@ export default function BookingModal({
   }, [startTime, endTime, existing]);
 
   const invalidRange = startTime >= endTime;
+  const isPastDate = date < todayStr();
+  const isToday = date === todayStr();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const isPastTime =
+    isToday && !invalidRange && toMinutes(endTime) <= nowMinutes;
   const canSubmit =
-    !submitting && !invalidRange && !conflict && purpose.trim().length > 0;
+    !submitting &&
+    !invalidRange &&
+    !isPastDate &&
+    !isPastTime &&
+    !conflict &&
+    purpose.trim().length > 0;
 
   function selectSlot(start: string, end: string) {
     setStartTime(start);
@@ -134,8 +123,16 @@ export default function BookingModal({
     e.preventDefault();
     setError(null);
 
+    if (isPastDate) {
+      setError("Tidak bisa booking untuk tanggal yang sudah lewat.");
+      return;
+    }
     if (invalidRange) {
       setError("Jam mulai harus lebih awal dari jam selesai.");
+      return;
+    }
+    if (isPastTime) {
+      setError("Jam ini sudah lewat untuk hari ini.");
       return;
     }
     if (conflict) {
@@ -233,6 +230,7 @@ export default function BookingModal({
             <input
               type="date"
               required
+              min={todayStr()}
               value={date}
               onChange={(e) => {
                 setDate(e.target.value);
@@ -241,6 +239,11 @@ export default function BookingModal({
               }}
               className={inputClass}
             />
+            {isPastDate && (
+              <p className="text-xs text-muted-foreground">
+                Tidak bisa booking untuk tanggal yang sudah lewat.
+              </p>
+            )}
           </div>
 
           {/* Time-slot picker: booked slots are disabled */}
@@ -266,23 +269,30 @@ export default function BookingModal({
             <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
               {slots.map((slot) => {
                 const isBooked = !!slot.booking;
+                const isPastSlot =
+                  isToday && toMinutes(slot.end) <= nowMinutes;
+                const isDisabled = isBooked || isPastDate || isPastSlot;
                 const isSelected =
-                  !isBooked &&
+                  !isDisabled &&
                   toMinutes(slot.start) >= toMinutes(startTime) &&
                   toMinutes(slot.end) <= toMinutes(endTime);
                 return (
                   <button
                     key={slot.start}
                     type="button"
-                    disabled={isBooked}
+                    disabled={isDisabled}
                     onClick={() => selectSlot(slot.start, slot.end)}
                     title={
                       isBooked
                         ? `Dibooking oleh ${slot.booking!.bookerName}`
-                        : `Pilih ${slot.start}`
+                        : isPastDate
+                          ? "Tanggal sudah lewat"
+                          : isPastSlot
+                            ? "Jam ini sudah lewat"
+                            : `Pilih ${slot.start}`
                     }
                     className={`rounded-md border px-1 py-1.5 text-center font-mono text-xs tabular-nums transition-colors ${
-                      isBooked
+                      isDisabled
                         ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/60 line-through"
                         : isSelected
                           ? "border-primary bg-primary text-primary-foreground"
@@ -306,6 +316,7 @@ export default function BookingModal({
               <input
                 type="time"
                 required
+                disabled={isPastDate}
                 value={startTime}
                 onChange={(e) => {
                   setStartTime(e.target.value);
@@ -319,6 +330,7 @@ export default function BookingModal({
               <input
                 type="time"
                 required
+                disabled={isPastDate}
                 value={endTime}
                 onChange={(e) => {
                   setEndTime(e.target.value);
@@ -364,15 +376,16 @@ export default function BookingModal({
             <label className={labelClass}>Keperluan</label>
             <textarea
               required
+              disabled={isPastDate}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               rows={2}
               placeholder="Rapat tim, presentasi, dll."
-              className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 
-          {(error || conflict || invalidRange) && (
+          {(error || conflict || invalidRange || isPastTime) && (
             <div className="flex items-start gap-2 rounded-md border border-foreground/20 bg-muted px-3 py-2 text-sm">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -392,7 +405,9 @@ export default function BookingModal({
                 {error ??
                   (invalidRange
                     ? "Jam mulai harus lebih awal dari jam selesai."
-                    : `Jam ${startTime}–${endTime} bentrok dengan booking ${conflict?.bookerName} (${conflict?.startTime}–${conflict?.endTime}).`)}
+                    : isPastTime
+                      ? "Jam ini sudah lewat untuk hari ini."
+                      : `Jam ${startTime}–${endTime} bentrok dengan booking ${conflict?.bookerName} (${conflict?.startTime}–${conflict?.endTime}).`)}
               </span>
             </div>
           )}

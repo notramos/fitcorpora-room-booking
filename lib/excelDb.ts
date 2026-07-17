@@ -196,8 +196,24 @@ function overlaps(
   return toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd);
 }
 
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function createBooking(input: CreateBookingInput): Promise<Booking> {
   return withLock(() => {
+    if (input.date < todayStr()) {
+      throw new Error("Tidak bisa booking untuk tanggal yang sudah lewat.");
+    }
+
+    if (input.date === todayStr()) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      if (toMinutes(input.endTime) <= nowMinutes) {
+        throw new Error("Jam ini sudah lewat untuk hari ini.");
+      }
+    }
+
     if (toMinutes(input.startTime) >= toMinutes(input.endTime)) {
       throw new Error("Jam mulai harus lebih awal dari jam selesai.");
     }

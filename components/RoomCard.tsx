@@ -5,12 +5,8 @@ import Link from "next/link";
 import BookingModal from "./BookingModal";
 import StatusBadge from "./StatusBadge";
 import { computeStatus } from "@/lib/roomStatus";
+import { getHourSlots, toMinutes } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
 
 export default function RoomCard({
   room,
@@ -24,14 +20,20 @@ export default function RoomCard({
   onBooked: (booking: Booking) => void;
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [prefill, setPrefill] = useState<{ start: string; end: string } | null>(
+    null
+  );
 
   const { status, currentBooking, nextBooking } = computeStatus(bookings, now);
   const isInUse = status === "Sedang Dipakai";
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const todaysSchedule = [...bookings].sort(
-    (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
-  );
+  const slots = getHourSlots(bookings);
+
+  function openBooking(slotStart?: string, slotEnd?: string) {
+    setPrefill(slotStart && slotEnd ? { start: slotStart, end: slotEnd } : null);
+    setIsModalOpen(true);
+  }
 
   return (
     <div className="flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm transition-shadow hover:shadow-md">
@@ -106,62 +108,57 @@ export default function RoomCard({
             <span className="text-muted-foreground">oleh</span>{" "}
             <span className="font-medium">{nextBooking.bookerName}</span>
           </p>
+        ) : bookings.length > 0 ? (
+          <p className="text-muted-foreground">
+            Tidak ada booking lagi untuk hari ini.
+          </p>
         ) : (
           <p className="text-muted-foreground">Belum ada booking hari ini.</p>
         )}
       </div>
 
-      {/* today's schedule */}
-      {todaysSchedule.length > 0 && (
-        <div className="px-5 py-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Jadwal Hari Ini · {todaysSchedule.length}
-          </p>
-          <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
-            {todaysSchedule.map((b) => {
-              const isCurrent = b.id === currentBooking?.id;
-              const isPast = toMinutes(b.endTime) <= nowMinutes && !isCurrent;
+      {/* hourly slot grid */}
+      <div className="px-5 py-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Jam Booking Hari Ini
+        </p>
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+          {slots.map((slot) => {
+            const isBooked = !!slot.booking;
+            const isCurrent =
+              isBooked && slot.booking!.id === currentBooking?.id;
+            const isPast = toMinutes(slot.end) <= nowMinutes && !isCurrent;
+            const isDisabled = isBooked || isPast;
 
-              return (
-                <div
-                  key={b.id}
-                  className={`rounded-lg border px-3 py-2.5 transition-colors ${
-                    isCurrent
-                      ? "border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10"
-                      : "bg-muted/40"
-                  } ${isPast ? "opacity-55" : ""}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`font-mono text-xs font-medium tabular-nums ${
-                        isCurrent ? "text-red-700 dark:text-red-400" : ""
-                      }`}
-                    >
-                      {b.startTime} – {b.endTime}
-                    </span>
-                    {isCurrent && (
-                      <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        Berlangsung
-                      </span>
-                    )}
-                    {isPast && (
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Selesai
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 truncate text-sm font-medium">
-                    {b.bookerName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {b.purpose}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={slot.start}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => openBooking(slot.start, slot.end)}
+                title={
+                  isBooked
+                    ? `Dibooking oleh ${slot.booking!.bookerName}`
+                    : isPast
+                      ? "Jam ini sudah lewat"
+                      : `Booking jam ${slot.start}`
+                }
+                className={`rounded-md border px-1 py-1.5 text-center font-mono text-xs tabular-nums transition-colors ${
+                  isBooked
+                    ? `cursor-not-allowed border-transparent bg-primary text-primary-foreground line-through ${
+                        isPast ? "opacity-40" : "opacity-70"
+                      }`
+                    : isPast
+                      ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/60"
+                      : "bg-background hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                {slot.start}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* action */}
       <div className="mt-auto grid grid-cols-[auto_1fr] gap-2 border-t p-4">
@@ -172,7 +169,7 @@ export default function RoomCard({
           Detail
         </Link>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => openBooking()}
           className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <svg
@@ -197,6 +194,8 @@ export default function RoomCard({
       {isModalOpen && (
         <BookingModal
           room={room}
+          initialStartTime={prefill?.start}
+          initialEndTime={prefill?.end}
           onClose={() => setIsModalOpen(false)}
           onBooked={onBooked}
         />

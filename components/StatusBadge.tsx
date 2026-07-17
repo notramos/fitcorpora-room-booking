@@ -8,8 +8,8 @@ const DOT_SIZES = {
   lg: "h-2.5 w-2.5",
 } as const;
 
-// Semantic room status: green = available, red = in use. Shared across the
-// dashboard cards, the room detail page, and the tablet display.
+// Monochrome room status: solid = in use, outline = available. Shared across
+// the dashboard cards, the room detail page, and the tablet display.
 export default function StatusBadge({
   inUse,
   size = "sm",
@@ -23,13 +23,13 @@ export default function StatusBadge({
         SIZES[size]
       } ${
         inUse
-          ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
-          : "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+          ? "bg-primary text-primary-foreground"
+          : "border bg-background text-muted-foreground"
       }`}
     >
       <span
         className={`rounded-full ${DOT_SIZES[size]} ${
-          inUse ? "bg-red-500" : "bg-green-500"
+          inUse ? "bg-primary-foreground" : "bg-foreground/50"
         }`}
       />
       {inUse ? "Sedang Dipakai" : "Tersedia"}

@@ -140,6 +140,8 @@ export default function RoomDisplay({
                   {nextBooking.startTime}
                 </span>
               </>
+            ) : bookings.length > 0 ? (
+              "Tidak ada booking lagi hari ini"
             ) : (
               "Bebas sepanjang hari ini"
             )}
@@ -174,15 +176,11 @@ export default function RoomDisplay({
                   key={b.id}
                   className={`flex items-center gap-4 rounded-xl border px-5 py-4 ${
                     isCurrent
-                      ? "border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10"
+                      ? "border-foreground/20 bg-accent"
                       : "bg-muted/40"
                   } ${isPast ? "opacity-45" : ""}`}
                 >
-                  <span
-                    className={`w-36 shrink-0 font-mono text-lg font-semibold tabular-nums sm:text-xl ${
-                      isCurrent ? "text-red-700 dark:text-red-400" : ""
-                    }`}
-                  >
+                  <span className="w-36 shrink-0 font-mono text-lg font-semibold tabular-nums sm:text-xl">
                     {b.startTime}–{b.endTime}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -194,7 +192,7 @@ export default function RoomDisplay({
                     </p>
                   </div>
                   {isCurrent && (
-                    <span className="shrink-0 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                    <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
                       Berlangsung
                     </span>
                   )}
