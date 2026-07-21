@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getBookings, getRoomById } from "@/lib/excelDb";
+import { getBookings, getRoomById } from "@/lib/sheetsDb";
 import RoomDisplay from "@/components/RoomDisplay";
 
 function todayStr() {
@@ -14,12 +14,12 @@ export default async function RoomDisplayPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const room = getRoomById(id);
+  const room = await getRoomById(id);
   if (!room) {
     notFound();
   }
 
-  const bookings = getBookings({ roomId: id, date: todayStr() });
+  const bookings = await getBookings({ roomId: id, date: todayStr() });
 
   return <RoomDisplay room={room} bookings={bookings} />;
 }

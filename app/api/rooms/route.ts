@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRooms } from "@/lib/excelDb";
+import { getRooms } from "@/lib/sheetsDb";
 
 export async function GET() {
   // TEMP: auth check disabled for testing. Uncomment to re-enable.
@@ -11,7 +11,7 @@ export async function GET() {
   // }
 
   try {
-    const rooms = getRooms();
+    const rooms = await getRooms();
     return NextResponse.json(rooms);
   } catch {
     return NextResponse.json(

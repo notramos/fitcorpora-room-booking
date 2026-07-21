@@ -1,6 +1,6 @@
 # Sistem Booking Ruangan Kantor
 
-Aplikasi booking ruangan kantor: satu app Next.js (App Router), login Microsoft Entra ID (Azure AD) via NextAuth, dan file Excel (`xlsx`) sebagai database — tanpa server database terpisah.
+Aplikasi booking ruangan kantor: satu app Next.js (App Router), login Microsoft Entra ID (Azure AD) via NextAuth, dan **Google Sheets** sebagai database — tanpa server database terpisah, dan cocok untuk deploy ke platform serverless seperti Vercel.
 
 ## Arsitektur
 
@@ -11,35 +11,66 @@ Browser (login Microsoft)
         -> / — Dashboard (server component ambil session + data ruangan)
         -> /api/rooms, /api/bookings, /api/bookings/[id]
    -> NextAuth + Azure AD (autentikasi, session JWT)
-   -> lib/excelDb.ts (baca/tulis + lock + validasi bentrok)
-        -> data/database.xlsx (sheet Rooms, sheet Bookings)
+   -> lib/sheetsDb.ts (baca/tulis + lock in-process + validasi bentrok)
+        -> Google Sheets API (tab Rooms, tab Bookings) via service account
 ```
 
 ## Setup
 
 1. Buat **App Registration** di https://entra.microsoft.com (Applications > App registrations), catat **Client ID**, **Tenant ID**, dan buat **Client Secret**.
 2. Tambahkan Redirect URI: `http://localhost:3000/api/auth/callback/azure-ad`.
-3. Salin `.env.local.example` ke `.env.local` dan isi:
+3. Setup **Google Sheets** sebagai database — lihat bagian "Setup Google Sheets" di bawah.
+4. Salin `.env.local.example` ke `.env.local` dan isi:
    ```
    AZURE_AD_CLIENT_ID=...
    AZURE_AD_CLIENT_SECRET=...
    AZURE_AD_TENANT_ID=...
    NEXTAUTH_SECRET=...
    NEXTAUTH_URL=http://localhost:3000
-   EXCEL_DB_PATH=./data/database.xlsx
+   GOOGLE_SERVICE_ACCOUNT_EMAIL=...
+   GOOGLE_PRIVATE_KEY=...
+   GOOGLE_SHEET_ID=...
    ```
    Generate `NEXTAUTH_SECRET` (Windows PowerShell, tanpa openssl):
    ```powershell
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    ```
-4. Install & jalankan:
+5. Install & jalankan:
    ```bash
    npm install
    npm run dev
    ```
-5. Buka `http://localhost:3000` — akan redirect ke `/login`, masuk dengan akun Microsoft.
+6. Buka `http://localhost:3000` — akan redirect ke `/login`, masuk dengan akun Microsoft.
 
-`data/database.xlsx` dibuat otomatis (dengan 3 ruangan contoh) saat pertama kali aplikasi mengakses data. Hapus file ini untuk reset ke data awal.
+## Setup Google Sheets
+
+1. Buat project di https://console.cloud.google.com, aktifkan **Google Sheets API** (APIs & Services → Library).
+2. **IAM & Admin → Service Accounts → Create Service Account**. Tidak perlu role IAM apa pun (akses diatur lewat "Share" di langkah 4).
+3. Buka service account itu → tab **Keys → Add Key → Create new key → JSON** — file akan ter-download sekali, simpan baik-baik. Catat `client_email` dan `private_key` dari isinya.
+4. Buat Google Sheet baru dengan 2 tab persis bernama `Rooms` dan `Bookings`, dengan header di baris 1:
+   - `Rooms`: `id`, `name`, `location`, `capacity`
+   - `Bookings`: `id`, `roomId`, `date`, `startTime`, `endTime`, `purpose`, `bookerName`, `bookerEmail`, `createdAt`
+5. Klik **Share** pada sheet itu, tambahkan `client_email` dari langkah 3 sebagai **Editor**.
+6. Ambil `GOOGLE_SHEET_ID` dari URL sheet (`https://docs.google.com/spreadsheets/d/<INI>/edit`).
+7. Isi `.env.local`:
+   ```
+   GOOGLE_SERVICE_ACCOUNT_EMAIL=<client_email>
+   GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   GOOGLE_SHEET_ID=<sheet id>
+   ```
+   `GOOGLE_PRIVATE_KEY` disimpan sebagai satu baris dengan `\n` **literal** (bukan newline sungguhan, persis seperti di file JSON) — kode akan otomatis mengubahnya jadi newline asli saat dibaca.
+
+3 ruangan contoh otomatis ditambahkan ke tab `Rooms` saat pertama kali aplikasi mengakses data (kalau tab itu masih kosong).
+
+## Deploy ke Vercel
+
+1. Push repo ke GitHub, import project di dashboard Vercel (atau `vercel` CLI).
+2. Isi semua env var dari `.env.local` di Vercel Project Settings → Environment Variables — paste `GOOGLE_PRIVATE_KEY` apa adanya dengan `\n` literal, jangan biarkan Vercel "merapikan" jadi multi-baris.
+3. Deploy, catat domain `https://<project>.vercel.app` (atau custom domain).
+4. Di Azure Portal App Registration → **Authentication** → tambah redirect URI `https://<domain>/api/auth/callback/azure-ad`.
+5. Update `NEXTAUTH_URL` di Vercel ke domain itu persis (termasuk `https://`, tanpa trailing slash), lalu redeploy.
+6. Kalau integrasi Teams juga dipakai di produksi, update `NEXT_PUBLIC_TEAMS_APP_ID_URI` sesuai domain produksi (lihat bagian Teams di bawah).
+7. **Perlu diputuskan sebelum go-live ke user asli**: `middleware.ts` saat ini sengaja bypass auth (`return NextResponse.next()` di awal fungsi) untuk memudahkan testing lokal. Uncomment logic aslinya di file itu sebelum aplikasi benar-benar dipakai orang lain.
 
 ## Integrasi Microsoft Teams (silent SSO)
 
@@ -96,19 +127,17 @@ components/
   RealtimeClock.tsx, StatusBadge.tsx, AuthProvider.tsx
 lib/
   auth.ts                         # authOptions NextAuth (Azure AD provider)
-  excelDb.ts                      # semua baca/tulis ke file Excel
+  sheetsDb.ts                     # semua baca/tulis ke Google Sheets (lock + validasi bentrok)
   roomStatus.ts                   # perhitungan status Tersedia/Sedang Dipakai
   teamsAuth.ts                    # verifikasi token Teams SSO (jose + JWKS Azure AD)
   types.ts                        # tipe Room, Booking
 teams-manifest/
   manifest.json                   # paket app Teams (isi placeholder sebelum sideload)
-data/
-  database.xlsx                   # dibuat otomatis saat pertama dijalankan
 middleware.ts                      # proteksi semua route kecuali /login (saat ini di-bypass sementara untuk testing)
 ```
 
 ## Keputusan desain yang perlu diketahui
 
 - **Hapus booking**: semua user yang sudah login boleh membatalkan booking ruangan manapun (tidak ada pengecekan kepemilikan), karena spesifikasi tidak mendefinisikan model role/kepemilikan dan ini adalah tool internal skala kecil. Untuk membatasi hanya pemesan asli yang bisa membatalkan, tambahkan pengecekan `session.user.email === booking.bookerEmail` di `app/api/bookings/[id]/route.ts` sebelum memanggil `deleteBooking`.
-- **Lock in-process**: `lib/excelDb.ts` menggunakan antrian promise in-process (`withLock`) untuk mencegah dua booking simultan saling menimpa file. Ini **hanya** melindungi dalam satu proses Node — tidak melindungi dari banyak instance server berjalan bersamaan. Sesuai skala kecil-menengah, satu instance server.
-- File Excel cocok untuk volume booking kecil-menengah, bukan untuk multi-instance/load balancing atau volume sangat tinggi. Jika kebutuhan berkembang, pertimbangkan migrasi ke database asli (Postgres/MySQL/SQLite).
+- **Lock in-process**: `lib/sheetsDb.ts` menggunakan antrian promise in-process (`withLock`) untuk mencegah dua booking simultan dalam proses yang sama saling menimpa. Ini **hanya** melindungi dalam satu instance/proses Node — tidak melindungi lintas banyak instance serverless yang jalan bersamaan (mis. di Vercel). Google Sheets API sendiri juga tidak punya row-level lock. Ini tetap peningkatan nyata dibanding file lokal: sekarang semua instance baca/tulis ke sumber yang sama dan benar-benar persisten, walau race condition di jendela waktu yang sangat sempit tetap mungkin terjadi pada volume tinggi.
+- Google Sheets API punya quota per-project (ratusan request/menit) — cukup untuk tool booking kantor skala kecil-menengah, bukan untuk volume sangat tinggi. Jika kebutuhan berkembang, pertimbangkan migrasi ke database asli (Postgres/MySQL/SQLite, mis. Vercel Postgres atau Neon).

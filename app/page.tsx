@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getBookings, getRooms } from "@/lib/excelDb";
+import { getBookings, getRooms } from "@/lib/sheetsDb";
 import Dashboard from "@/components/Dashboard";
 
 function todayStr() {
@@ -10,8 +10,8 @@ function todayStr() {
 export default async function Home() {
   await getServerSession(authOptions);
 
-  const rooms = getRooms();
-  const bookings = getBookings({ date: todayStr() });
+  const rooms = await getRooms();
+  const bookings = await getBookings({ date: todayStr() });
 
   return <Dashboard initialRooms={rooms} initialBookings={bookings} />;
 }

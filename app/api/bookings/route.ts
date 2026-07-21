@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { BookingConflictError, createBooking, getBookings } from "@/lib/excelDb";
+import { BookingConflictError, createBooking, getBookings } from "@/lib/sheetsDb";
 import type { CreateBookingInput } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const roomId = request.nextUrl.searchParams.get("roomId") ?? undefined;
     const date = request.nextUrl.searchParams.get("date") ?? undefined;
-    const bookings = getBookings({ roomId, date });
+    const bookings = await getBookings({ roomId, date });
     return NextResponse.json(bookings);
   } catch {
     return NextResponse.json(

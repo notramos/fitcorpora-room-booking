@@ -37,9 +37,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-# runtime data (Excel "database", regenerated on first run)
-/data/*.xlsx
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
