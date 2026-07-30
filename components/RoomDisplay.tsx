@@ -174,30 +174,23 @@ export default function RoomDisplay({
               return (
                 <li
                   key={b.id}
-                  className={`flex items-center gap-4 rounded-xl border px-5 py-4 ${
-                    isCurrent
-                      ? "border-foreground/20 bg-accent"
-                      : "bg-muted/40"
-                  } ${isPast ? "opacity-45" : ""}`}
+                  className={`flex items-center gap-4 rounded-xl bg-foreground px-5 py-4 text-background ${
+                    isPast ? "opacity-45" : ""
+                  }`}
                 >
                   <span className="w-36 shrink-0 font-mono text-lg font-semibold tabular-nums sm:text-xl">
                     {b.startTime}–{b.endTime}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-medium">
-                      {b.bookerName}
-                    </p>
-                    <p className="truncate text-base text-muted-foreground">
-                      {b.purpose}
-                    </p>
-                  </div>
+                  <p className="min-w-0 flex-1 truncate text-lg font-medium">
+                    {b.bookerName}
+                  </p>
                   {isCurrent && (
-                    <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
+                    <span className="shrink-0 rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground">
                       Berlangsung
                     </span>
                   )}
                   {isPast && (
-                    <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-background/60">
                       Selesai
                     </span>
                   )}
