@@ -78,9 +78,11 @@ export default function RoomDisplay({
   );
   const isInUse = status === "Sedang Dipakai";
 
-  const schedule = [...bookings].sort(
-    (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
-  );
+  // Only show bookings that are currently ongoing or still upcoming today —
+  // finished bookings are dropped entirely from the public tablet agenda.
+  const schedule = [...bookings]
+    .filter((b) => toMinutes(b.endTime) > nowMinutes)
+    .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
 
   const timeMain = now
     ? now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
@@ -109,11 +111,11 @@ export default function RoomDisplay({
         </div>
 
         <div>
-          <div className="flex items-end justify-center gap-3 lg:justify-start">
-            <span className="font-mono text-7xl font-bold leading-none tabular-nums sm:text-8xl">
+          <div className="flex items-end justify-center gap-4 lg:justify-start">
+            <span className="font-mono text-8xl font-bold leading-none tabular-nums sm:text-9xl lg:text-[10rem]">
               {timeMain}
             </span>
-            <span className="mb-1 font-mono text-3xl font-medium leading-none tabular-nums text-muted-foreground sm:mb-2 sm:text-4xl">
+            <span className="mb-2 font-mono text-4xl font-medium leading-none tabular-nums text-muted-foreground sm:mb-3 sm:text-5xl lg:text-6xl">
               {seconds}
             </span>
           </div>
@@ -170,13 +172,10 @@ export default function RoomDisplay({
           <ul className="flex flex-col gap-2.5 overflow-y-auto">
             {schedule.map((b) => {
               const isCurrent = b.id === currentBooking?.id;
-              const isPast = toMinutes(b.endTime) <= nowMinutes && !isCurrent;
               return (
                 <li
                   key={b.id}
-                  className={`flex items-center gap-4 rounded-xl bg-foreground px-5 py-4 text-background ${
-                    isPast ? "opacity-45" : ""
-                  }`}
+                  className="flex items-center gap-4 rounded-xl bg-foreground px-5 py-4 text-background"
                 >
                   <span className="w-36 shrink-0 font-mono text-lg font-semibold tabular-nums sm:text-xl">
                     {b.startTime}–{b.endTime}
@@ -187,11 +186,6 @@ export default function RoomDisplay({
                   {isCurrent && (
                     <span className="shrink-0 rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground">
                       Berlangsung
-                    </span>
-                  )}
-                  {isPast && (
-                    <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-background/60">
-                      Selesai
                     </span>
                   )}
                 </li>
