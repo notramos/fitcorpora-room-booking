@@ -4,6 +4,37 @@ import type { Booking } from "./types";
 export const START_HOUR = 7;
 export const END_HOUR = 21;
 
+// The office's real timezone. "Today" and "now" for booking validation are
+// always pinned to this, rather than the ambient timezone of whatever
+// machine happens to run the code — the Next.js server may run in UTC (e.g.
+// on Vercel) while the office/browsers are WIB (UTC+7), and without pinning
+// this, a booking made for "today" between 00:00–06:59 WIB could be
+// computed as "yesterday" server-side and get wrongly rejected as past.
+export const APP_TIMEZONE = "Asia/Jakarta";
+
+// "YYYY-MM-DD" for the given instant, in the office's timezone — use this
+// instead of `new Date().toISOString().slice(0, 10)` (which is UTC) or
+// `date.toLocaleDateString()` (which is the ambient/browser timezone)
+// anywhere a booking's `date` field is compared or generated.
+export function todayStr(date: Date = new Date()): string {
+  // en-CA formats as YYYY-MM-DD, which is exactly the sheet's date format.
+  return date.toLocaleDateString("en-CA", { timeZone: APP_TIMEZONE });
+}
+
+// Minutes since midnight, in the office's timezone — pair with `toMinutes`
+// for "is this slot past" checks so it agrees with `todayStr` above.
+export function nowMinutesInAppTimezone(date: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
 export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;

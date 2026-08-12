@@ -29,7 +29,6 @@ const REQUIRED_FIELDS: (keyof CreateBookingInput)[] = [
   "date",
   "startTime",
   "endTime",
-  "purpose",
 ];
 
 export async function POST(request: NextRequest) {
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
     date: body.date!,
     startTime: body.startTime!,
     endTime: body.endTime!,
-    purpose: body.purpose!,
+    purpose: body.purpose ?? "",
     // TEMP: derived from session when auth is enabled; falls back to body while auth is disabled.
     bookerName: body.bookerName ?? "Unknown",
     bookerEmail: body.bookerEmail ?? "",

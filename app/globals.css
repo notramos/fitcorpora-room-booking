@@ -2,6 +2,10 @@
 
 /* shadcn-style design tokens — strict monochrome (zinc) palette */
 :root {
+  /* Tells the browser which palette to render native form controls in
+     (date/time picker icons, number spinners, scrollbars) — without this
+     the calendar/clock glyphs stay black-on-black in dark mode. */
+  color-scheme: light;
   --radius: 0.65rem;
 
   --background: oklch(1 0 0);
@@ -23,9 +27,29 @@
   --ring: oklch(0.705 0.015 286.067);
 }
 
-/* No dark-mode media query on purpose — this app always renders in the
-   light/white theme regardless of the user's OS/browser color-scheme
-   preference. */
+/* Dark theme — activated by a `dark` class on <html>, toggled by
+   ThemeToggle and persisted to localStorage (see layout.tsx's inline
+   anti-flash script). */
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.92 0.004 286.32);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.552 0.016 285.938);
+}
 
 @theme inline {
   --color-background: var(--background);

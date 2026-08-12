@@ -2,32 +2,50 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { getHourSlots, overlaps, toMinutes } from "@/lib/timeSlots";
+import {
+  getHourSlots,
+  nowMinutesInAppTimezone,
+  overlaps,
+  todayStr,
+  toMinutes,
+} from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground read-only:bg-muted read-only:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
 const labelClass = "text-sm font-medium leading-none";
 
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+function formatDateLong(d: string): string {
+  return new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 export default function BookingModal({
   room,
+  initialDate,
   initialStartTime,
   initialEndTime,
+  fixedSlot = false,
   onClose,
   onBooked,
 }: {
   room: Room;
+  initialDate?: string;
   initialStartTime?: string;
   initialEndTime?: string;
+  // When true, the date/time were already chosen on the search page —
+  // show them as read-only info instead of editable inputs/slot picker,
+  // and skip the email field for a quicker one-field booking flow.
+  fixedSlot?: boolean;
   onClose: () => void;
   onBooked: (booking: Booking) => void;
 }) {
   const { data: session } = useSession();
-  const [date, setDate] = useState(todayStr);
+  const [date, setDate] = useState(initialDate ?? todayStr());
   const [startTime, setStartTime] = useState(initialStartTime ?? "09:00");
   const [endTime, setEndTime] = useState(initialEndTime ?? "10:00");
   const [purpose, setPurpose] = useState("");
@@ -102,7 +120,7 @@ export default function BookingModal({
   const invalidRange = startTime >= endTime;
   const isPastDate = date < todayStr();
   const isToday = date === todayStr();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = nowMinutesInAppTimezone(now);
   const isPastTime =
     isToday && !invalidRange && toMinutes(endTime) <= nowMinutes;
   const canSubmit =
@@ -111,7 +129,7 @@ export default function BookingModal({
     !isPastDate &&
     !isPastTime &&
     !conflict &&
-    purpose.trim().length > 0;
+    (!!session || bookerName.trim().length > 0);
 
   function selectSlot(start: string, end: string) {
     setStartTime(start);
@@ -198,7 +216,15 @@ export default function BookingModal({
           onSubmit={handleSubmit}
           className="flex-1 space-y-4 overflow-y-auto p-6"
         >
-          <div className="grid grid-cols-2 gap-4">
+          {room.requiresApproval && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Ruangan ini terbatas. Booking akan berstatus{" "}
+              <span className="font-medium">menunggu persetujuan</span> office
+              management sebelum terkonfirmasi.
+            </div>
+          )}
+
+          <div className={fixedSlot ? "" : "grid grid-cols-2 gap-4"}>
             <div className="space-y-1.5">
               <label className={labelClass}>Nama Pemesan</label>
               <input
@@ -211,135 +237,149 @@ export default function BookingModal({
                 className={inputClass}
               />
             </div>
-            <div className="space-y-1.5">
-              <label className={labelClass}>Email Pemesan</label>
-              <input
-                type="email"
-                required={!session}
-                readOnly={!!session}
-                placeholder="email@kantor.com"
-                value={session?.user?.email ?? bookerEmail}
-                onChange={(e) => setBookerEmail(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className={labelClass}>Tanggal</label>
-            <input
-              type="date"
-              required
-              min={todayStr()}
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                setLoadingSlots(true);
-                setError(null);
-              }}
-              className={inputClass}
-            />
-            {isPastDate && (
-              <p className="text-xs text-muted-foreground">
-                Tidak bisa booking untuk tanggal yang sudah lewat.
-              </p>
+            {!fixedSlot && (
+              <div className="space-y-1.5">
+                <label className={labelClass}>Email Pemesan</label>
+                <input
+                  type="email"
+                  required={!session}
+                  readOnly={!!session}
+                  placeholder="email@kantor.com"
+                  value={session?.user?.email ?? bookerEmail}
+                  onChange={(e) => setBookerEmail(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             )}
           </div>
 
-          {/* Time-slot picker: booked slots are disabled */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className={labelClass}>Pilih Jam</label>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-sm border bg-background" />
-                  Kosong
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
-                  Dipilih
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-muted line-through" />
-                  Terisi
-                </span>
+          {fixedSlot ? (
+            /* Date/time were already chosen on the search page — just confirm them. */
+            <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
+              <p className="font-medium">{formatDateLong(date)}</p>
+              <p className="font-mono tabular-nums text-muted-foreground">
+                {startTime}–{endTime}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Tanggal</label>
+                <input
+                  type="date"
+                  required
+                  min={todayStr()}
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    setLoadingSlots(true);
+                    setError(null);
+                  }}
+                  className={inputClass}
+                />
+                {isPastDate && (
+                  <p className="text-xs text-muted-foreground">
+                    Tidak bisa booking untuk tanggal yang sudah lewat.
+                  </p>
+                )}
               </div>
-            </div>
 
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
-              {slots.map((slot) => {
-                const isBooked = !!slot.booking;
-                const isPastSlot =
-                  isToday && toMinutes(slot.end) <= nowMinutes;
-                const isDisabled = isBooked || isPastDate || isPastSlot;
-                const isSelected =
-                  !isDisabled &&
-                  toMinutes(slot.start) >= toMinutes(startTime) &&
-                  toMinutes(slot.end) <= toMinutes(endTime);
-                return (
-                  <button
-                    key={slot.start}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={() => selectSlot(slot.start, slot.end)}
-                    title={
-                      isBooked
-                        ? `Dibooking oleh ${slot.booking!.bookerName}`
-                        : isPastDate
-                          ? "Tanggal sudah lewat"
-                          : isPastSlot
-                            ? "Jam ini sudah lewat"
-                            : `Pilih ${slot.start}`
-                    }
-                    className={`rounded-md border px-1 py-1.5 text-center font-mono text-xs tabular-nums transition-colors ${
-                      isDisabled
-                        ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/60 line-through"
-                        : isSelected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "bg-background hover:bg-accent hover:text-accent-foreground"
-                    }`}
-                  >
-                    {slot.start}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Klik slot untuk memilih, atau atur manual di bawah. Slot terisi
-              tidak bisa dipilih.
-            </p>
-          </div>
+              {/* Time-slot picker: booked slots are disabled */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className={labelClass}>Pilih Jam</label>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded-sm border bg-background" />
+                      Kosong
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
+                      Dipilih
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-muted line-through" />
+                      Terisi
+                    </span>
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className={labelClass}>Jam Mulai</label>
-              <input
-                type="time"
-                required
-                disabled={isPastDate}
-                value={startTime}
-                onChange={(e) => {
-                  setStartTime(e.target.value);
-                  setError(null);
-                }}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className={labelClass}>Jam Selesai</label>
-              <input
-                type="time"
-                required
-                disabled={isPastDate}
-                value={endTime}
-                onChange={(e) => {
-                  setEndTime(e.target.value);
-                  setError(null);
-                }}
-                className={inputClass}
-              />
-            </div>
-          </div>
+                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+                  {slots.map((slot) => {
+                    const isBooked = !!slot.booking;
+                    const isPastSlot =
+                      isToday && toMinutes(slot.end) <= nowMinutes;
+                    const isDisabled = isBooked || isPastDate || isPastSlot;
+                    const isSelected =
+                      !isDisabled &&
+                      toMinutes(slot.start) >= toMinutes(startTime) &&
+                      toMinutes(slot.end) <= toMinutes(endTime);
+                    return (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => selectSlot(slot.start, slot.end)}
+                        title={
+                          isBooked
+                            ? `Dibooking oleh ${slot.booking!.bookerName}`
+                            : isPastDate
+                              ? "Tanggal sudah lewat"
+                              : isPastSlot
+                                ? "Jam ini sudah lewat"
+                                : `Pilih ${slot.start}`
+                        }
+                        className={`rounded-md border px-1 py-1.5 text-center font-mono text-xs tabular-nums transition-colors ${
+                          isDisabled
+                            ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/60 line-through"
+                            : isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "bg-background hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                      >
+                        {slot.start}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Klik slot untuk memilih, atau atur manual di bawah. Slot
+                  terisi tidak bisa dipilih.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Jam Mulai</label>
+                  <input
+                    type="time"
+                    required
+                    disabled={isPastDate}
+                    value={startTime}
+                    onChange={(e) => {
+                      setStartTime(e.target.value);
+                      setError(null);
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelClass}>Jam Selesai</label>
+                  <input
+                    type="time"
+                    required
+                    disabled={isPastDate}
+                    value={endTime}
+                    onChange={(e) => {
+                      setEndTime(e.target.value);
+                      setError(null);
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Info: already-booked slots for this room & date */}
           <div className="rounded-lg border bg-muted/40 p-3">
@@ -373,9 +413,8 @@ export default function BookingModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className={labelClass}>Keperluan</label>
+            <label className={labelClass}>Keperluan (opsional)</label>
             <textarea
-              required
               disabled={isPastDate}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
@@ -427,7 +466,11 @@ export default function BookingModal({
             disabled={!canSubmit}
             className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           >
-            {submitting ? "Menyimpan…" : "Simpan Booking"}
+            {submitting
+              ? "Menyimpan…"
+              : room.requiresApproval
+                ? "Ajukan Persetujuan"
+                : "Simpan Booking"}
           </button>
         </div>
       </div>

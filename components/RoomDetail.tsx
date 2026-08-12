@@ -6,18 +6,14 @@ import RealtimeClock from "./RealtimeClock";
 import BookingModal from "./BookingModal";
 import StatusBadge from "./StatusBadge";
 import { computeStatus } from "@/lib/roomStatus";
+import {
+  nowMinutesInAppTimezone,
+  todayStr,
+  toMinutes,
+} from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
 
 const REFRESH_INTERVAL_MS = 30000;
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
 
 function formatDateLong(d: string): string {
   const dt = new Date(`${d}T00:00:00`);
@@ -72,7 +68,7 @@ export default function RoomDetail({
     now
   );
   const isInUse = status === "Sedang Dipakai";
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = nowMinutesInAppTimezone(now);
 
   // Upcoming bookings (future dates) grouped by date.
   const upcomingByDate = useMemo(() => {
@@ -285,13 +281,16 @@ export default function RoomDetail({
                   const isCurrent = b.id === currentBooking?.id;
                   const isPast =
                     toMinutes(b.endTime) <= nowMinutes && !isCurrent;
+                  const isPending = b.status === "pending";
                   return (
                     <li
                       key={b.id}
                       className={`flex items-start gap-4 rounded-lg border px-4 py-3 ${
-                        isCurrent
-                          ? "border-foreground/20 bg-accent"
-                          : "bg-muted/40"
+                        isPending
+                          ? "border-dashed border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                          : isCurrent
+                            ? "border-foreground/20 bg-accent"
+                            : "bg-muted/40"
                       } ${isPast ? "opacity-55" : ""}`}
                     >
                       <span className="w-28 shrink-0 font-mono text-sm font-medium tabular-nums">
@@ -305,6 +304,11 @@ export default function RoomDetail({
                           {b.purpose}
                         </p>
                       </div>
+                      {isPending && (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          Menunggu Persetujuan
+                        </span>
+                      )}
                       {isCurrent && (
                         <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
                           Berlangsung
@@ -349,7 +353,11 @@ export default function RoomDetail({
                       {list.map((b) => (
                         <li
                           key={b.id}
-                          className="flex items-start gap-4 rounded-lg border bg-muted/40 px-4 py-3"
+                          className={`flex items-start gap-4 rounded-lg border px-4 py-3 ${
+                            b.status === "pending"
+                              ? "border-dashed border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                              : "bg-muted/40"
+                          }`}
                         >
                           <span className="w-28 shrink-0 font-mono text-sm font-medium tabular-nums">
                             {b.startTime}–{b.endTime}
@@ -362,6 +370,11 @@ export default function RoomDetail({
                               {b.purpose}
                             </p>
                           </div>
+                          {b.status === "pending" && (
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Menunggu Persetujuan
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
