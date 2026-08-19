@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
     // TEMP: derived from session when auth is enabled; falls back to body while auth is disabled.
     bookerName: body.bookerName ?? "Unknown",
     bookerEmail: body.bookerEmail ?? "",
+    isOvertime: !!body.isOvertime,
+    overtimeNote: body.overtimeNote ?? "",
   };
 
   try {

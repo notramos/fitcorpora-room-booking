@@ -7,9 +7,13 @@ import BookingModal from "./BookingModal";
 import RoomDetailModal from "./RoomDetailModal";
 import ThemeToggle from "./ThemeToggle";
 import {
+  BUSINESS_END,
+  BUSINESS_HOURS_LABEL,
+  BUSINESS_START,
   nowMinutesInAppTimezone,
   overlaps,
   todayStr,
+  toMinutes,
 } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
 
@@ -28,13 +32,18 @@ function pad(n: number): string {
 }
 
 // Rounds "now" up to the next half-hour mark, e.g. 09:12 -> 09:30,
-// 09:45 -> 10:00 — so the search form opens on a slot someone could
-// actually book right now instead of a fixed 09:00.
+// 09:45 -> 10:00, then clamps into 08:00–18:00 — so the search form opens
+// on a normal bookable slot by default. Overtime (outside that window) is
+// still reachable by typing a time manually; it just isn't the default.
 function nextRoundedTime(from: Date): string {
   const minutes = nowMinutesInAppTimezone(from);
   const rounded = Math.ceil(minutes / TIME_STEP_MINUTES) * TIME_STEP_MINUTES;
-  const h = Math.floor(rounded / 60) % 24;
-  const m = rounded % 60;
+  const clamped = Math.min(
+    Math.max(rounded, toMinutes(BUSINESS_START)),
+    toMinutes(BUSINESS_END) - 60
+  );
+  const h = Math.floor(clamped / 60) % 24;
+  const m = clamped % 60;
   return `${pad(h)}:${pad(m)}`;
 }
 
@@ -60,6 +69,7 @@ function ResultGroup({
   subtitle,
   items,
   bestId,
+  isOvertime,
   onBook,
   onDetail,
 }: {
@@ -67,6 +77,7 @@ function ResultGroup({
   subtitle: string;
   items: RoomResult[];
   bestId: string | undefined;
+  isOvertime: boolean;
   onBook: (room: Room) => void;
   onDetail: (room: Room) => void;
 }) {
@@ -86,6 +97,7 @@ function ResultGroup({
             key={result.room.id}
             result={result}
             isBest={result.room.id === bestId}
+            isOvertime={isOvertime}
             onBook={onBook}
             onDetail={onDetail}
           />
@@ -98,11 +110,13 @@ function ResultGroup({
 function RoomResultCard({
   result: { room, available, capacityOk, conflict },
   isBest,
+  isOvertime,
   onBook,
   onDetail,
 }: {
   result: RoomResult;
   isBest: boolean;
+  isOvertime: boolean;
   onBook: (room: Room) => void;
   onDetail: (room: Room) => void;
 }) {
@@ -132,7 +146,12 @@ function RoomResultCard({
               Rekomendasi
             </span>
           )}
-          {room.requiresApproval && (
+          {isOvertime && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              Overtime
+            </span>
+          )}
+          {!isOvertime && room.requiresApproval && (
             <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
               Perlu Persetujuan
             </span>
@@ -143,11 +162,13 @@ function RoomResultCard({
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {available
-            ? room.requiresApproval
-              ? "Ruangan terbatas — booking Anda perlu disetujui office management dulu"
-              : capacityOk
-                ? "Sesuai kebutuhan Anda"
-                : "Tersedia, tapi kapasitas di bawah yang diminta"
+            ? isOvertime
+              ? "Di luar jam operasional — perlu diajukan sebagai surat overtime"
+              : room.requiresApproval
+                ? "Ruangan terbatas — booking Anda perlu disetujui office management dulu"
+                : capacityOk
+                  ? "Sesuai kebutuhan Anda"
+                  : "Tersedia, tapi kapasitas di bawah yang diminta"
             : `Dipakai atau sedang menunggu persetujuan · ${conflict?.bookerName} (${conflict?.startTime}–${conflict?.endTime})`}
         </p>
         <button
@@ -163,7 +184,11 @@ function RoomResultCard({
         disabled={!available}
         className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
       >
-        {room.requiresApproval ? "Ajukan Booking" : "Booking"}
+        {isOvertime
+          ? "Ajukan Overtime"
+          : room.requiresApproval
+            ? "Ajukan Booking"
+            : "Booking"}
       </button>
     </div>
   );
@@ -210,6 +235,10 @@ export default function SearchBooking({
   }, [date]);
 
   const invalidRange = startTime >= endTime;
+  const isOvertime =
+    !invalidRange &&
+    (toMinutes(startTime) < toMinutes(BUSINESS_START) ||
+      toMinutes(endTime) > toMinutes(BUSINESS_END));
 
   const results = useMemo<RoomResult[]>(() => {
     if (!searched || invalidRange) return [];
@@ -396,6 +425,13 @@ export default function SearchBooking({
               Jam mulai harus lebih awal dari jam selesai.
             </p>
           )}
+          {isOvertime && (
+            <p className="sm:col-span-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Jam operasional gedung {BUSINESS_HOURS_LABEL} (lampu mati pukul
+              18.00). Booking di luar jam ini akan diajukan sebagai surat
+              overtime ke office management.
+            </p>
+          )}
 
           <div className="sm:col-span-4">
             <button
@@ -417,9 +453,11 @@ export default function SearchBooking({
             }`}
           >
             <p>
-              {lastBooked.status === "pending"
-                ? "Booking terkirim dan menunggu persetujuan office management. Slot sudah diamankan untuk Anda."
-                : "Booking berhasil dikonfirmasi."}
+              {lastBooked.isOvertime
+                ? "Surat overtime terkirim dan menunggu persetujuan office management. Slot sudah diamankan untuk Anda."
+                : lastBooked.status === "pending"
+                  ? "Booking terkirim dan menunggu persetujuan office management. Slot sudah diamankan untuk Anda."
+                  : "Booking berhasil dikonfirmasi."}
             </p>
             <button
               onClick={() => setLastBooked(null)}
@@ -437,6 +475,7 @@ export default function SearchBooking({
               subtitle={`${results.filter((r) => r.available).length} ruangan bisa dipesan di jam ini`}
               items={results.filter((r) => r.available)}
               bestId={results.find((r) => r.match)?.room.id}
+              isOvertime={isOvertime}
               onBook={setBookingRoom}
               onDetail={setDetailRoom}
             />
@@ -445,6 +484,7 @@ export default function SearchBooking({
               subtitle="Sudah dipakai orang lain di jam yang Anda pilih"
               items={results.filter((r) => !r.available)}
               bestId={undefined}
+              isOvertime={isOvertime}
               onBook={setBookingRoom}
               onDetail={setDetailRoom}
             />

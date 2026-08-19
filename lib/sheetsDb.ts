@@ -1,13 +1,21 @@
 import { google, sheets_v4 } from "googleapis";
 import crypto from "crypto";
 import { notifyPendingApproval } from "./teamsNotify";
-import { nowMinutesInAppTimezone, overlaps, todayStr, toMinutes } from "./timeSlots";
+import {
+  BUSINESS_END,
+  BUSINESS_HOURS_LABEL,
+  BUSINESS_START,
+  nowMinutesInAppTimezone,
+  overlaps,
+  todayStr,
+  toMinutes,
+} from "./timeSlots";
 import type { Booking, CreateBookingInput, CreateRoomInput, Room } from "./types";
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const ROOMS_RANGE = "Rooms!A:G";
 const ROOMS_SHEET_NAME = "Rooms";
-const BOOKINGS_RANGE = "Bookings!A:K";
+const BOOKINGS_RANGE = "Bookings!A:M";
 const BOOKINGS_SHEET_NAME = "Bookings";
 
 let sheetsClient: sheets_v4.Sheets | null = null;
@@ -85,6 +93,8 @@ function toBooking(row: string[]): Booking {
     createdAt: row[8] ?? "",
     status: row[9] === "pending" ? "pending" : "approved",
     reminderSent: (row[10] ?? "").trim().toUpperCase() === "TRUE",
+    isOvertime: (row[11] ?? "").trim().toUpperCase() === "TRUE",
+    overtimeNote: row[12] ?? "",
   };
 }
 
@@ -113,6 +123,8 @@ function bookingToRow(b: Booking): string[] {
     b.createdAt,
     b.status,
     b.reminderSent ? "TRUE" : "FALSE",
+    b.isOvertime ? "TRUE" : "FALSE",
+    b.overtimeNote,
   ];
 }
 
@@ -268,6 +280,19 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
       throw new Error("Jam mulai harus lebih awal dari jam selesai.");
     }
 
+    const isOutsideBusinessHours =
+      toMinutes(input.startTime) < toMinutes(BUSINESS_START) ||
+      toMinutes(input.endTime) > toMinutes(BUSINESS_END);
+
+    if (isOutsideBusinessHours && !input.isOvertime) {
+      throw new Error(
+        `Booking hanya bisa dilakukan pukul ${BUSINESS_HOURS_LABEL}. Untuk jam di luar itu, ajukan sebagai overtime.`
+      );
+    }
+    if (input.isOvertime && !input.purpose.trim()) {
+      throw new Error("Keperluan wajib diisi untuk pengajuan overtime.");
+    }
+
     const room = await getRoomById(input.roomId);
     if (!room) {
       throw new Error("Ruangan tidak ditemukan.");
@@ -301,7 +326,10 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
       ...input,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      status: room.requiresApproval ? "pending" : "approved",
+      // Overtime always needs sign-off, regardless of the room's own
+      // requiresApproval setting — after-hours access is a building-wide
+      // concern (lights shut off at 18:00), not a per-room one.
+      status: room.requiresApproval || input.isOvertime ? "pending" : "approved",
       reminderSent: false,
     };
 

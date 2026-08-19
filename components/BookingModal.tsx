@@ -3,6 +3,9 @@
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  BUSINESS_END,
+  BUSINESS_HOURS_LABEL,
+  BUSINESS_START,
   getHourSlots,
   nowMinutesInAppTimezone,
   overlaps,
@@ -49,6 +52,7 @@ export default function BookingModal({
   const [startTime, setStartTime] = useState(initialStartTime ?? "09:00");
   const [endTime, setEndTime] = useState(initialEndTime ?? "10:00");
   const [purpose, setPurpose] = useState("");
+  const [overtimeNote, setOvertimeNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // TEMP: while auth is disabled there's no session, so let the tester type these in.
@@ -123,13 +127,20 @@ export default function BookingModal({
   const nowMinutes = nowMinutesInAppTimezone(now);
   const isPastTime =
     isToday && !invalidRange && toMinutes(endTime) <= nowMinutes;
+  // Outside 08:00–18:00 (building lights shut off at 18:00) — routed
+  // through the overtime flow instead of being blocked outright.
+  const isOvertime =
+    !invalidRange &&
+    (toMinutes(startTime) < toMinutes(BUSINESS_START) ||
+      toMinutes(endTime) > toMinutes(BUSINESS_END));
   const canSubmit =
     !submitting &&
     !invalidRange &&
     !isPastDate &&
     !isPastTime &&
     !conflict &&
-    (!!session || bookerName.trim().length > 0);
+    (!!session || bookerName.trim().length > 0) &&
+    (!isOvertime || purpose.trim().length > 0);
 
   function selectSlot(start: string, end: string) {
     setStartTime(start);
@@ -159,6 +170,10 @@ export default function BookingModal({
       );
       return;
     }
+    if (isOvertime && !purpose.trim()) {
+      setError("Keperluan wajib diisi untuk pengajuan overtime.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -173,6 +188,8 @@ export default function BookingModal({
           purpose,
           bookerName: session?.user?.name ?? bookerName,
           bookerEmail: session?.user?.email ?? bookerEmail,
+          isOvertime,
+          overtimeNote,
         }),
       });
 
@@ -221,6 +238,16 @@ export default function BookingModal({
               Ruangan ini terbatas. Booking akan berstatus{" "}
               <span className="font-medium">menunggu persetujuan</span> office
               management sebelum terkonfirmasi.
+            </div>
+          )}
+
+          {isOvertime && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Jam ini di luar jam operasional ({BUSINESS_HOURS_LABEL}) —
+              gedung mematikan lampu pukul 18.00. Booking ini akan diajukan
+              sebagai <span className="font-medium">surat overtime</span> dan
+              perlu persetujuan office management. Isi keperluan dengan
+              jelas.
             </div>
           )}
 
@@ -413,8 +440,11 @@ export default function BookingModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className={labelClass}>Keperluan (opsional)</label>
+            <label className={labelClass}>
+              Keperluan {isOvertime ? "" : "(opsional)"}
+            </label>
             <textarea
+              required={isOvertime}
               disabled={isPastDate}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
@@ -423,6 +453,22 @@ export default function BookingModal({
               className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
+
+          {isOvertime && (
+            <div className="space-y-1.5">
+              <label className={labelClass}>
+                Dokumen/Keterangan Pendukung (opsional)
+              </label>
+              <textarea
+                disabled={isPastDate}
+                value={overtimeNote}
+                onChange={(e) => setOvertimeNote(e.target.value)}
+                rows={2}
+                placeholder="Link approval atasan, dokumen pendukung, atau keterangan tambahan lain"
+                className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          )}
 
           {(error || conflict || invalidRange || isPastTime) && (
             <div className="flex items-start gap-2 rounded-md border border-foreground/20 bg-muted px-3 py-2 text-sm">
@@ -468,9 +514,11 @@ export default function BookingModal({
           >
             {submitting
               ? "Menyimpan…"
-              : room.requiresApproval
-                ? "Ajukan Persetujuan"
-                : "Simpan Booking"}
+              : isOvertime
+                ? "Ajukan Surat Overtime"
+                : room.requiresApproval
+                  ? "Ajukan Persetujuan"
+                  : "Simpan Booking"}
           </button>
         </div>
       </div>

@@ -35,6 +35,14 @@ export interface Booking {
   // prevents the reminder cron from sending it twice. Only meaningful for
   // "approved" bookings with a non-empty bookerEmail.
   reminderSent: boolean;
+  // Requested outside business hours (08:00–18:00, building lights shut
+  // off at 18:00) — always forced to "pending" regardless of the room's own
+  // requiresApproval setting, since it needs office management sign-off.
+  isOvertime: boolean;
+  // Free-text justification/link (e.g. a manager's pre-approval, an
+  // attached document) submitted alongside an overtime request. Optional —
+  // empty for normal bookings.
+  overtimeNote: string;
 }
 
 export type CreateBookingInput = Omit<
