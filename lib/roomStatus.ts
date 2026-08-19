@@ -1,3 +1,4 @@
+import { nowMinutesInAppTimezone, toMinutes } from "./timeSlots";
 import type { Booking } from "./types";
 
 export interface RoomStatus {
@@ -6,17 +7,14 @@ export interface RoomStatus {
   nextBooking: Booking | null;
 }
 
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
 export function computeStatus(bookings: Booking[], now: Date): RoomStatus {
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = nowMinutesInAppTimezone(now);
 
-  const sorted = [...bookings].sort(
-    (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
-  );
+  // A booking still awaiting approval doesn't actually occupy the room —
+  // only approved bookings count toward "Sedang Dipakai" / next-up status.
+  const sorted = bookings
+    .filter((b) => b.status === "approved")
+    .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
 
   const currentBooking =
     sorted.find(

@@ -1,20 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import StatusBadge from "./StatusBadge";
 import { computeStatus } from "@/lib/roomStatus";
+import {
+  nowMinutesInAppTimezone,
+  todayStr,
+  toMinutes,
+} from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
 
 const REFRESH_INTERVAL_MS = 30000;
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function RoomDisplay({
   room,
@@ -44,7 +39,12 @@ export default function RoomDisplay({
         `/api/bookings?roomId=${encodeURIComponent(room.id)}&date=${todayStr()}`,
         { cache: "no-store" }
       );
-      if (res.ok) return (await res.json()) as Booking[];
+      if (res.ok) {
+        const data = (await res.json()) as Booking[];
+        // Public kiosk display — only show confirmed bookings, never ones
+        // still awaiting approval.
+        return data.filter((b) => b.status === "approved");
+      }
     } catch {
       // keep last known data on transient errors
     }
@@ -71,7 +71,7 @@ export default function RoomDisplay({
   }, [loadBookings]);
 
   const reference = now ?? new Date();
-  const nowMinutes = reference.getHours() * 60 + reference.getMinutes();
+  const nowMinutes = nowMinutesInAppTimezone(reference);
   const { status, currentBooking, nextBooking } = computeStatus(
     bookings,
     reference
@@ -125,7 +125,14 @@ export default function RoomDisplay({
         </div>
 
         <div className="flex flex-col items-center gap-3 lg:items-start">
-          <StatusBadge inUse={isInUse} size="lg" />
+          <span
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-base font-medium text-white sm:text-lg ${
+              isInUse ? "bg-red-600" : "bg-emerald-600"
+            }`}
+          >
+            <span className="h-2.5 w-2.5 rounded-full bg-white/80" />
+            {isInUse ? "Sedang Dipakai" : "Tersedia"}
+          </span>
           <p className="text-base text-muted-foreground sm:text-lg">
             {currentBooking ? (
               <>

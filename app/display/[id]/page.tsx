@@ -1,10 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBookings, getRoomById } from "@/lib/sheetsDb";
+import { todayStr } from "@/lib/timeSlots";
 import RoomDisplay from "@/components/RoomDisplay";
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // Public kiosk/tablet view — meant to be mounted at the room entrance.
 // Excluded from the auth middleware so a wall display works without login.
@@ -19,7 +16,11 @@ export default async function RoomDisplayPage({
     notFound();
   }
 
-  const bookings = await getBookings({ roomId: id, date: todayStr() });
+  const bookings = await getBookings({
+    roomId: id,
+    date: todayStr(),
+    status: "approved",
+  });
 
   return <RoomDisplay room={room} bookings={bookings} />;
 }
