@@ -5,11 +5,10 @@ import { BookingConflictError, createBooking, getBookings } from "@/lib/sheetsDb
 import type { CreateBookingInput } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
-  // TEMP: auth check disabled for testing. Uncomment to re-enable.
-  // const session = await getServerSession(authOptions);
-  // if (!session) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const roomId = request.nextUrl.searchParams.get("roomId") ?? undefined;
@@ -32,11 +31,10 @@ const REQUIRED_FIELDS: (keyof CreateBookingInput)[] = [
 ];
 
 export async function POST(request: NextRequest) {
-  // TEMP: auth check disabled for testing. Uncomment to re-enable.
-  // const session = await getServerSession(authOptions);
-  // if (!session) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let body: Partial<CreateBookingInput>;
   try {
@@ -60,9 +58,8 @@ export async function POST(request: NextRequest) {
     startTime: body.startTime!,
     endTime: body.endTime!,
     purpose: body.purpose ?? "",
-    // TEMP: derived from session when auth is enabled; falls back to body while auth is disabled.
-    bookerName: body.bookerName ?? "Unknown",
-    bookerEmail: body.bookerEmail ?? "",
+    bookerName: session.user?.name ?? body.bookerName ?? "Unknown",
+    bookerEmail: session.user?.email ?? body.bookerEmail ?? "",
   };
 
   try {

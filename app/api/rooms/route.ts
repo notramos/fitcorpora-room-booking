@@ -5,11 +5,10 @@ import { createRoom, getRooms } from "@/lib/sheetsDb";
 import type { CreateRoomInput } from "@/lib/types";
 
 export async function GET() {
-  // TEMP: auth check disabled for testing. Uncomment to re-enable.
-  // const session = await getServerSession(authOptions);
-  // if (!session) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const rooms = await getRooms();
@@ -23,12 +22,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  // TEMP: admin-only, auth disabled for testing. Uncomment once Azure AD
-  // App Roles are wired up (see lib/auth.ts session.user.isAdmin).
-  // const session = await getServerSession(authOptions);
-  // if (!session?.user?.isAdmin) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
 
   let body: Partial<CreateRoomInput>;
   try {

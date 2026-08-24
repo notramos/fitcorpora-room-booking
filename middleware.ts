@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 
-// TEMP: auth gating disabled for testing. Uncomment the block below and
-// remove the early `return NextResponse.next()` to re-enable route protection.
 export default async function middleware(request: NextRequest) {
-  return NextResponse.next();
-
-  /*
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
@@ -20,7 +15,6 @@ export default async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
-  */
 }
 
 export const config = {

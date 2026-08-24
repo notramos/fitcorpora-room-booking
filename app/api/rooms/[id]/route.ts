@@ -8,12 +8,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // TEMP: admin-only, auth disabled for testing. Uncomment once Azure AD
-  // App Roles are wired up (see lib/auth.ts session.user.isAdmin).
-  // const session = await getServerSession(authOptions);
-  // if (!session?.user?.isAdmin) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
 
   const { id } = await params;
 
@@ -61,12 +59,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // TEMP: admin-only, auth disabled for testing. Uncomment once Azure AD
-  // App Roles are wired up (see lib/auth.ts session.user.isAdmin).
-  // const session = await getServerSession(authOptions);
-  // if (!session?.user?.isAdmin) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
 
   const { id } = await params;
 

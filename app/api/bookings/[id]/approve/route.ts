@@ -7,12 +7,10 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // TEMP: auth check disabled for testing. Uncomment to re-enable, and add
-  // an approver check once real accounts are wired up.
-  // const session = await getServerSession(authOptions);
-  // if (!session) {
-  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
 
   const { id } = await params;
 

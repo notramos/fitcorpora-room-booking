@@ -51,7 +51,9 @@ export default function BookingModal({
   const [purpose, setPurpose] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // TEMP: while auth is disabled there's no session, so let the tester type these in.
+  // Fallback state for when there's no session (shouldn't normally happen
+  // once the auth middleware is active, but keeps the form usable if it
+  // somehow renders without one).
   const [bookerName, setBookerName] = useState(session?.user?.name ?? "");
   const [bookerEmail, setBookerEmail] = useState(session?.user?.email ?? "");
 
