@@ -18,8 +18,9 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // `display` is excluded so the public tablet/kiosk view works without login.
+  // `display` and `api/display` are excluded so the public tablet/kiosk view
+  // (and its data polling) works without login.
   matcher: [
-    "/((?!api/auth|login|display|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/display|login|display|_next/static|_next/image|favicon.ico).*)",
   ],
 };

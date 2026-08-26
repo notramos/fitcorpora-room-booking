@@ -30,20 +30,22 @@ export default function RoomDisplay({
   }, []);
 
   // Poll fresh bookings straight from the API every 30s so a new/cancelled
-  // booking shows up on the display without a manual reload. `no-store` avoids
-  // any browser/Next caching. `today` is recomputed each call so a kiosk left
-  // on overnight rolls over to the new day automatically.
+  // booking shows up on the display without a manual reload. Uses
+  // /api/display/[roomId] rather than /api/bookings — the kiosk has no
+  // session, and /api/bookings requires one (previously this fetch was
+  // silently redirected to /login by the auth middleware, failed to parse as
+  // JSON, and got swallowed by the catch below, so the display just never
+  // updated until someone manually reloaded it). `no-store` avoids any
+  // browser/Next caching. `today` is recomputed each call so a kiosk left on
+  // overnight rolls over to the new day automatically.
   const loadBookings = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/bookings?roomId=${encodeURIComponent(room.id)}&date=${todayStr()}`,
+        `/api/display/${encodeURIComponent(room.id)}?date=${todayStr()}`,
         { cache: "no-store" }
       );
       if (res.ok) {
-        const data = (await res.json()) as Booking[];
-        // Public kiosk display — only show confirmed bookings, never ones
-        // still awaiting approval.
-        return data.filter((b) => b.status === "approved");
+        return (await res.json()) as Booking[];
       }
     } catch {
       // keep last known data on transient errors
@@ -63,10 +65,15 @@ export default function RoomDisplay({
       if (document.visibilityState === "visible") refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+
     return () => {
       cancelled = true;
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
     };
   }, [loadBookings]);
 
