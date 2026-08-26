@@ -26,7 +26,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold tracking-tight">
-            Sistem Booking Ruangan
+            Fitcorpora Room Booking
           </h1>
           <p className="text-sm text-muted-foreground">
             Masuk dengan akun Microsoft kantor Anda untuk melanjutkan.

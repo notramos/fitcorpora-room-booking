@@ -35,9 +35,14 @@ export interface Booking {
   // prevents the reminder cron from sending it twice. Only meaningful for
   // "approved" bookings with a non-empty bookerEmail.
   reminderSent: boolean;
+  // Microsoft Graph event id for the Outlook/Teams calendar invite created
+  // on the booker's mailbox once the booking is approved. Empty until then
+  // (or forever, if Graph calendar sync isn't configured). Needed to cancel
+  // the invite if the booking is later deleted.
+  graphEventId?: string;
 }
 
 export type CreateBookingInput = Omit<
   Booking,
-  "id" | "createdAt" | "status" | "reminderSent"
+  "id" | "createdAt" | "status" | "reminderSent" | "graphEventId"
 >;

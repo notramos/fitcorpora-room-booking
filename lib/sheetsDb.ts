@@ -1,13 +1,14 @@
 import { google, sheets_v4 } from "googleapis";
 import crypto from "crypto";
 import { notifyPendingApproval } from "./teamsNotify";
+import { createCalendarEvent, deleteCalendarEvent } from "./graphCalendar";
 import { nowMinutesInAppTimezone, overlaps, todayStr, toMinutes } from "./timeSlots";
 import type { Booking, CreateBookingInput, CreateRoomInput, Room } from "./types";
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const ROOMS_RANGE = "Rooms!A:G";
 const ROOMS_SHEET_NAME = "Rooms";
-const BOOKINGS_RANGE = "Bookings!A:K";
+const BOOKINGS_RANGE = "Bookings!A:L";
 const BOOKINGS_SHEET_NAME = "Bookings";
 
 let sheetsClient: sheets_v4.Sheets | null = null;
@@ -85,6 +86,7 @@ function toBooking(row: string[]): Booking {
     createdAt: row[8] ?? "",
     status: row[9] === "pending" ? "pending" : "approved",
     reminderSent: (row[10] ?? "").trim().toUpperCase() === "TRUE",
+    graphEventId: row[11] || undefined,
   };
 }
 
@@ -113,6 +115,7 @@ function bookingToRow(b: Booking): string[] {
     b.createdAt,
     b.status,
     b.reminderSent ? "TRUE" : "FALSE",
+    b.graphEventId ?? "",
   ];
 }
 
@@ -305,6 +308,16 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
       reminderSent: false,
     };
 
+    // Rooms that don't require approval are confirmed immediately, so send
+    // the Teams/Outlook calendar invite right away. A failed Graph call
+    // shouldn't block the booking itself — it just means no invite went
+    // out, same tradeoff as the Teams notification below.
+    if (booking.status === "approved") {
+      booking.graphEventId = await createCalendarEvent(booking, room).catch(
+        () => undefined
+      );
+    }
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: BOOKINGS_RANGE,
@@ -336,12 +349,24 @@ export function approveBooking(id: string): Promise<boolean> {
     const rowIndex = rows.slice(1).findIndex((row) => row[0] === id);
     if (rowIndex === -1) return false;
 
+    const row = rows.slice(1)[rowIndex] as string[];
+    const booking = toBooking(row);
+    const room = await getRoomById(booking.roomId);
+
+    // Same fire-and-forget tradeoff as createBooking: a failed Graph call
+    // shouldn't block the approval itself.
+    const graphEventId = room
+      ? await createCalendarEvent(booking, room).catch(() => undefined)
+      : undefined;
+
     const sheetRowNumber = rowIndex + 2; // +1 for header, +1 for 1-indexing
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `Bookings!J${sheetRowNumber}`,
+      range: `Bookings!J${sheetRowNumber}:L${sheetRowNumber}`,
       valueInputOption: "RAW",
-      requestBody: { values: [["approved"]] },
+      requestBody: {
+        values: [["approved", booking.reminderSent ? "TRUE" : "FALSE", graphEventId ?? ""]],
+      },
     });
 
     return true;
@@ -439,6 +464,15 @@ export function deleteBooking(id: string): Promise<boolean> {
     // rows[0] is the header; data rows start at rows[1].
     const rowIndex = rows.slice(1).findIndex((row) => row[0] === id);
     if (rowIndex === -1) return false;
+
+    const booking = toBooking(rows.slice(1)[rowIndex] as string[]);
+    if (booking.graphEventId) {
+      // Same fire-and-forget tradeoff as elsewhere: a failed cancellation
+      // shouldn't block freeing up the slot.
+      await deleteCalendarEvent(booking.bookerEmail, booking.graphEventId).catch(
+        () => undefined
+      );
+    }
 
     const sheetRowNumber = rowIndex + 2; // +1 for header, +1 for 1-indexing
     const tabId = await getTabId(BOOKINGS_SHEET_NAME);

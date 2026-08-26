@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistem Booking Ruangan Kantor",
+  title: "Fitcorpora Room Booking",
   description: "Booking ruangan kantor dengan Excel sebagai database",
 };
 

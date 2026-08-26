@@ -271,7 +271,7 @@ export default function SearchBooking({
               </svg>
             </div>
             <h1 className="text-sm font-semibold leading-tight tracking-tight">
-              Booking Ruangan Kantor
+              Fitcorpora Room Booking
             </h1>
           </div>
 
