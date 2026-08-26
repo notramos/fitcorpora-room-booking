@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
     startTime: body.startTime!,
     endTime: body.endTime!,
     purpose: body.purpose ?? "",
-    bookerName: session.user?.name ?? body.bookerName ?? "Unknown",
-    bookerEmail: session.user?.email ?? body.bookerEmail ?? "",
+    // TEMP: derived from session when auth is enabled; falls back to body while auth is disabled.
+    bookerName: body.bookerName ?? "Unknown",
+    bookerEmail: body.bookerEmail ?? "",
+    isOvertime: !!body.isOvertime,
+    overtimeNote: body.overtimeNote ?? "",
   };
 
   try {

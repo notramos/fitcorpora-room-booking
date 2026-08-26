@@ -34,7 +34,9 @@ export async function notifyPendingApproval(
     body: [
       {
         type: "TextBlock",
-        text: "Booking ruangan menunggu persetujuan",
+        text: booking.isOvertime
+          ? "⚠️ Pengajuan overtime menunggu persetujuan"
+          : "Booking ruangan menunggu persetujuan",
         weight: "Bolder",
         size: "Medium",
         wrap: true,
@@ -42,12 +44,18 @@ export async function notifyPendingApproval(
       {
         type: "FactSet",
         facts: [
+          ...(booking.isOvertime
+            ? [{ title: "Jenis", value: "Overtime (di luar jam operasional)" }]
+            : []),
           { title: "Ruangan", value: room.name },
           { title: "Tanggal", value: formatDateLong(booking.date) },
           { title: "Jam", value: `${booking.startTime}–${booking.endTime}` },
           { title: "Pemesan", value: booking.bookerName },
           ...(booking.purpose
             ? [{ title: "Keperluan", value: booking.purpose }]
+            : []),
+          ...(booking.overtimeNote
+            ? [{ title: "Keterangan Pendukung", value: booking.overtimeNote }]
             : []),
         ],
       },

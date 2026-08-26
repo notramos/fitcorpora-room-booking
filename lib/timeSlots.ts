@@ -1,8 +1,15 @@
 import type { Booking } from "./types";
 
-// Business hours for hourly slot pickers (07:00 – 21:00).
-export const START_HOUR = 7;
-export const END_HOUR = 21;
+// Business/operating hours — the building's lights shut off at 18:00, so
+// normal bookings are confined to 08:00–18:00. A request outside this
+// window isn't rejected outright; it's routed through the overtime flow
+// instead (see BUSINESS_START/BUSINESS_END below and lib/sheetsDb.ts's
+// createBooking).
+export const START_HOUR = 8;
+export const END_HOUR = 18;
+export const BUSINESS_START = hh(START_HOUR);
+export const BUSINESS_END = hh(END_HOUR);
+export const BUSINESS_HOURS_LABEL = `${BUSINESS_START}–${BUSINESS_END}`;
 
 // The office's real timezone. "Today" and "now" for booking validation are
 // always pinned to this, rather than the ambient timezone of whatever

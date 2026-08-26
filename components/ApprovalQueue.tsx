@@ -116,6 +116,11 @@ export default function ApprovalQueue({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold tracking-tight">{room.name}</p>
+                  {booking.isOvertime && (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800 dark:bg-red-950 dark:text-red-300">
+                      Overtime
+                    </span>
+                  )}
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                     Menunggu
                   </span>
@@ -133,6 +138,11 @@ export default function ApprovalQueue({
                     </span>
                   ) : null}
                 </p>
+                {booking.overtimeNote && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pendukung: {booking.overtimeNote}
+                  </p>
+                )}
               </div>
 
               <div className="flex shrink-0 gap-2">
