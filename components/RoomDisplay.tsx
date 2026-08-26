@@ -118,11 +118,23 @@ export default function RoomDisplay({
         </div>
 
         <div>
+          {/* Font sizes scale continuously with viewport width (clamp+vw)
+              instead of jumping at fixed breakpoints — a stepped size that
+              fits a 1280px kiosk can still be too wide for the ~40% left
+              column on a narrower tablet and crash into the divider next to
+              it, since column width scales with viewport but breakpoint
+              text sizes don't track it 1:1. */}
           <div className="flex items-end justify-center gap-4 md:justify-start">
-            <span className="font-mono text-6xl font-bold leading-none tabular-nums sm:text-7xl md:text-8xl lg:text-[10rem]">
+            <span
+              className="font-mono font-bold leading-none tabular-nums"
+              style={{ fontSize: "clamp(2.5rem, 11vw, 9rem)" }}
+            >
               {timeMain}
             </span>
-            <span className="mb-2 font-mono text-3xl font-medium leading-none tabular-nums text-muted-foreground sm:mb-3 sm:text-4xl md:text-5xl lg:text-6xl">
+            <span
+              className="mb-2 font-mono font-medium leading-none tabular-nums text-muted-foreground"
+              style={{ fontSize: "clamp(1.25rem, 4.5vw, 3.75rem)" }}
+            >
               {seconds}
             </span>
           </div>
