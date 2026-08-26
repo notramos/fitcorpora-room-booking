@@ -11,6 +11,13 @@ import type { Booking, Room } from "@/lib/types";
 
 const REFRESH_INTERVAL_MS = 30000;
 
+// Public display keeps names short (e.g. "Gregorius Sergio Guntur" ->
+// "Gregorius Sergio") — full multi-word names crowd the kiosk layout and
+// the first two words are enough to identify the booker at a glance.
+function shortName(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).join(" ");
+}
+
 export default function RoomDisplay({
   room,
   bookings: initialBookings,
@@ -161,7 +168,7 @@ export default function RoomDisplay({
               <>
                 Dipakai oleh{" "}
                 <span className="font-medium text-foreground">
-                  {currentBooking.bookerName}
+                  {shortName(currentBooking.bookerName)}
                 </span>{" "}
                 hingga {currentBooking.endTime}
               </>
@@ -211,7 +218,7 @@ export default function RoomDisplay({
                     {b.startTime}–{b.endTime}
                   </span>
                   <p className="min-w-0 flex-1 truncate text-lg font-medium">
-                    {b.bookerName}
+                    {shortName(b.bookerName)}
                   </p>
                   {isCurrent && (
                     <span className="shrink-0 rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-foreground">
