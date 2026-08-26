@@ -1,0 +1,26 @@
+services:
+  traefik:
+    image: traefik:v3.6.1
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=traefik-public
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+    ports:
+      - "8080:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.fitcorpora.com`)"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # add basicauth middleware before exposing this publicly
+
+networks:
+  traefik-public:
+    external: true
