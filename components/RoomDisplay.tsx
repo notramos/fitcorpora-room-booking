@@ -107,7 +107,10 @@ export default function RoomDisplay({
   return (
     <main className="flex flex-1 flex-col gap-8 p-6 sm:p-10 md:flex-row md:gap-12">
       {/* left: identity, clock, status */}
-      <section className="flex flex-col justify-center gap-6 text-center md:w-[40%] md:border-r md:pr-12 md:text-left">
+      <section
+        className="flex flex-col justify-center gap-6 text-center md:w-[40%] md:border-r md:pr-12 md:text-left"
+        style={{ containerType: "inline-size" }}
+      >
         <div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {room.name}
@@ -118,22 +121,23 @@ export default function RoomDisplay({
         </div>
 
         <div>
-          {/* Font sizes scale continuously with viewport width (clamp+vw)
-              instead of jumping at fixed breakpoints — a stepped size that
-              fits a 1280px kiosk can still be too wide for the ~40% left
-              column on a narrower tablet and crash into the divider next to
-              it, since column width scales with viewport but breakpoint
-              text sizes don't track it 1:1. */}
+          {/* Font sizes scale off this section's own width (container query
+              units, cqw) rather than the viewport (vw) or fixed breakpoints
+              — this section is only ~40% of the viewport once split, so
+              sizing off vw doesn't know how much room is actually available
+              and can overflow past the section into the schedule column
+              next to it. cqw is relative to this section's own content box,
+              so it can never outgrow it regardless of screen size. */}
           <div className="flex items-end justify-center gap-4 md:justify-start">
             <span
               className="font-mono font-bold leading-none tabular-nums"
-              style={{ fontSize: "clamp(2.5rem, 11vw, 9rem)" }}
+              style={{ fontSize: "clamp(2.5rem, 18cqw, 8rem)" }}
             >
               {timeMain}
             </span>
             <span
               className="mb-2 font-mono font-medium leading-none tabular-nums text-muted-foreground"
-              style={{ fontSize: "clamp(1.25rem, 4.5vw, 3.75rem)" }}
+              style={{ fontSize: "clamp(1.25rem, 8cqw, 3.5rem)" }}
             >
               {seconds}
             </span>
