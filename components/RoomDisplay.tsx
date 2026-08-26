@@ -105,7 +105,7 @@ export default function RoomDisplay({
     : "";
 
   return (
-    <main className="flex min-h-[100dvh] flex-1 flex-col gap-8 p-6 sm:p-10 lg:flex-row lg:gap-12">
+    <main className="flex flex-1 flex-col gap-8 p-6 sm:p-10 lg:flex-row lg:gap-12">
       {/* left: identity, clock, status */}
       <section className="flex flex-col justify-center gap-6 text-center lg:w-[40%] lg:border-r lg:pr-12 lg:text-left">
         <div>
