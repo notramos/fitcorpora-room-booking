@@ -105,9 +105,9 @@ export default function RoomDisplay({
     : "";
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-6 sm:p-10 lg:flex-row lg:gap-12">
+    <main className="flex flex-1 flex-col gap-8 p-6 sm:p-10 md:flex-row md:gap-12">
       {/* left: identity, clock, status */}
-      <section className="flex flex-col justify-center gap-6 text-center lg:w-[40%] lg:border-r lg:pr-12 lg:text-left">
+      <section className="flex flex-col justify-center gap-6 text-center md:w-[40%] md:border-r md:pr-12 md:text-left">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {room.name}
@@ -118,11 +118,11 @@ export default function RoomDisplay({
         </div>
 
         <div>
-          <div className="flex items-end justify-center gap-4 lg:justify-start">
-            <span className="font-mono text-8xl font-bold leading-none tabular-nums sm:text-9xl lg:text-[10rem]">
+          <div className="flex items-end justify-center gap-4 md:justify-start">
+            <span className="font-mono text-6xl font-bold leading-none tabular-nums sm:text-7xl md:text-8xl lg:text-[10rem]">
               {timeMain}
             </span>
-            <span className="mb-2 font-mono text-4xl font-medium leading-none tabular-nums text-muted-foreground sm:mb-3 sm:text-5xl lg:text-6xl">
+            <span className="mb-2 font-mono text-3xl font-medium leading-none tabular-nums text-muted-foreground sm:mb-3 sm:text-4xl md:text-5xl lg:text-6xl">
               {seconds}
             </span>
           </div>
@@ -131,7 +131,7 @@ export default function RoomDisplay({
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-3 lg:items-start">
+        <div className="flex flex-col items-center gap-3 md:items-start">
           <span
             className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-base font-medium text-white sm:text-lg ${
               isInUse ? "bg-red-600" : "bg-emerald-600"
