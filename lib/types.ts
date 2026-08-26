@@ -43,6 +43,11 @@ export interface Booking {
   // attached document) submitted alongside an overtime request. Optional —
   // empty for normal bookings.
   overtimeNote: string;
+  // Microsoft Graph event id for the Outlook/Teams calendar invite created
+  // on the booker's mailbox once the booking is approved. Empty until then
+  // (or forever, if Graph calendar sync isn't configured). Needed to cancel
+  // the invite if the booking is later deleted.
+  graphEventId?: string;
 }
 
 export type CreateBookingInput = Omit<

@@ -1,6 +1,7 @@
 import { google, sheets_v4 } from "googleapis";
 import crypto from "crypto";
 import { notifyPendingApproval } from "./teamsNotify";
+import { createCalendarEvent, deleteCalendarEvent } from "./graphCalendar";
 import {
   BUSINESS_END,
   BUSINESS_HOURS_LABEL,
@@ -15,7 +16,7 @@ import type { Booking, CreateBookingInput, CreateRoomInput, Room } from "./types
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const ROOMS_RANGE = "Rooms!A:G";
 const ROOMS_SHEET_NAME = "Rooms";
-const BOOKINGS_RANGE = "Bookings!A:M";
+const BOOKINGS_RANGE = "Bookings!A:N";
 const BOOKINGS_SHEET_NAME = "Bookings";
 
 let sheetsClient: sheets_v4.Sheets | null = null;
@@ -95,6 +96,7 @@ function toBooking(row: string[]): Booking {
     reminderSent: (row[10] ?? "").trim().toUpperCase() === "TRUE",
     isOvertime: (row[11] ?? "").trim().toUpperCase() === "TRUE",
     overtimeNote: row[12] ?? "",
+    graphEventId: row[13] || undefined,
   };
 }
 
@@ -125,6 +127,7 @@ function bookingToRow(b: Booking): string[] {
     b.reminderSent ? "TRUE" : "FALSE",
     b.isOvertime ? "TRUE" : "FALSE",
     b.overtimeNote,
+    b.graphEventId ?? "",
   ];
 }
 
@@ -387,10 +390,18 @@ export function approveBooking(id: string): Promise<boolean> {
     const sheetRowNumber = rowIndex + 2; // +1 for header, +1 for 1-indexing
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `Bookings!J${sheetRowNumber}:L${sheetRowNumber}`,
+      range: `Bookings!J${sheetRowNumber}:N${sheetRowNumber}`,
       valueInputOption: "RAW",
       requestBody: {
-        values: [["approved", booking.reminderSent ? "TRUE" : "FALSE", graphEventId ?? ""]],
+        values: [
+          [
+            "approved",
+            booking.reminderSent ? "TRUE" : "FALSE",
+            booking.isOvertime ? "TRUE" : "FALSE",
+            booking.overtimeNote,
+            graphEventId ?? "",
+          ],
+        ],
       },
     });
 
