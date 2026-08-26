@@ -15,7 +15,7 @@ export default function DisplayLayout({
           bezel with no visual boundary between content and the physical
           edge of the screen; this border gives the display a defined "card"
           edge instead of content bleeding straight into the bezel. */}
-      <div className="m-3 flex flex-1 flex-col rounded-2xl border-4 border-foreground/15 sm:m-4">
+      <div className="m-6 flex flex-1 flex-col rounded-2xl border-4 border-foreground/15 sm:m-8">
         {children}
       </div>
     </div>
