@@ -1,7 +1,8 @@
-# Build and run with .env.prod loaded as the project environment, so the
-# `secrets:` block below (sourced from env vars) can see it:
-#   docker compose --env-file ./.env.prod build
-#   docker compose --env-file ./.env.prod up -d
+# Build and run with: ./build.sh
+#
+# app/display/page.tsx prerenders at build time using live Google Sheets
+# data, so `docker compose build` needs the secret files below to exist
+# first — build.sh extracts them from .env.prod automatically.
 services:
   app:
     build:
@@ -25,17 +26,13 @@ services:
       - traefik.http.routers.room-booking-system.entrypoints=web
       - traefik.http.services.room-booking-system.loadbalancer.server.port=3000
 
-# app/display/page.tsx prerenders at build time using live Google Sheets
-# data, so `next build` needs the same GOOGLE_* credentials as runtime.
-# Sourced from .env.prod so there's a single place to manage them; passed
-# to the builder stage as BuildKit secrets (not baked into image layers).
 secrets:
   google_sa_email:
-    environment: GOOGLE_SERVICE_ACCOUNT_EMAIL
+    file: ./.secrets/google_sa_email
   google_private_key:
-    environment: GOOGLE_PRIVATE_KEY
+    file: ./.secrets/google_private_key
   google_sheet_id:
-    environment: GOOGLE_SHEET_ID
+    file: ./.secrets/google_sheet_id
 
 networks:
   traefik-public:

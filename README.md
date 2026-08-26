@@ -82,10 +82,10 @@ Setup ini mengasumsikan Traefik sebagai reverse proxy bersama (satu Traefik untu
    docker compose -f docker-compose.traefik.yml up -d
    ```
 2. Salin `.env.prod` (sudah di-gitignore) dan isi semua value — `NEXTAUTH_URL` sudah di-set ke `https://room-booking.fitcorpora.com`, tinggal isi secret Azure AD dan Google Sheets seperti di `.env.local`.
-3. Build & jalankan app-nya. `app/display` melakukan fetch Google Sheets saat *build* (prerender), jadi `.env.prod` harus sudah terisi kredensial Google yang valid sebelum build:
+3. Build & jalankan app-nya lewat `./build.sh`. `app/display` melakukan fetch Google Sheets saat *build* (prerender), jadi script ini menyalin `GOOGLE_*` dari `.env.prod` ke `./.secrets/` (gitignored) lalu meneruskannya ke `docker compose build` sebagai BuildKit secret — pastikan `.env.prod` sudah terisi kredensial Google yang valid sebelum menjalankan ini:
    ```
-   docker compose --env-file ./.env.prod build
-   docker compose --env-file ./.env.prod up -d
+   chmod +x build.sh   # sekali saja
+   ./build.sh
    ```
 4. Di Azure Portal App Registration → **Authentication**, tambah redirect URI `https://room-booking.fitcorpora.com/api/auth/callback/azure-ad`.
 5. Di Cloudflare, arahkan DNS record `room-booking.fitcorpora.com` (proxied) ke IP host, port `8080` (port Traefik di `docker-compose.traefik.yml`).
