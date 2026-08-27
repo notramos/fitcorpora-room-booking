@@ -204,7 +204,17 @@ export default function RoomDisplay({
       </section>
 
       {/* right: today's agenda */}
-      <section className="flex min-h-0 flex-1 flex-col">
+      {/* min-w-0 is load-bearing: this section is a flex item (flex-1) in
+          main's row layout, and flex items default to min-width:auto — that
+          lets this column's own content (e.g. the fixed w-36 time badges)
+          refuse to shrink below its own intrinsic width. Once the left
+          column was pinned to shrink-0, this column had nowhere to give,
+          so it overflowed main's box entirely — invisible-looking because
+          it renders past the frame's right edge, but reachable by
+          scrolling right, since main's overflow-y-auto implicitly makes
+          overflow-x auto too (per spec, one non-visible axis forces the
+          other out of visible as well). */}
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Jadwal Hari Ini
