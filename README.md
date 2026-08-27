@@ -72,6 +72,24 @@ Browser (login Microsoft)
 6. Kalau integrasi Teams juga dipakai di produksi, update `NEXT_PUBLIC_TEAMS_APP_ID_URI` sesuai domain produksi (lihat bagian Teams di bawah).
 7. **Perlu diputuskan sebelum go-live ke user asli**: `middleware.ts` saat ini sengaja bypass auth (`return NextResponse.next()` di awal fungsi) untuk memudahkan testing lokal. Uncomment logic aslinya di file itu sebelum aplikasi benar-benar dipakai orang lain.
 
+## Deploy dengan Docker
+
+Setup ini mengasumsikan Traefik sebagai reverse proxy bersama (satu Traefik untuk beberapa app di host yang sama) dan Cloudflare yang menangani TLS/DNS di depan (proxied, diarahkan ke `http://<host>:8080`).
+
+1. Sekali per host, jalankan Traefik:
+   ```
+   docker network create traefik-public   # sekali saja kalau network belum ada
+   docker compose -f docker-compose.traefik.yml up -d
+   ```
+2. Salin `.env.prod` (sudah di-gitignore) dan isi semua value — `NEXTAUTH_URL` sudah di-set ke `https://room-booking.fitcorpora.com`, tinggal isi secret Azure AD dan Google Sheets seperti di `.env.local`.
+3. Build & jalankan app-nya lewat `./build.sh`. `app/display` melakukan fetch Google Sheets saat *build* (prerender), jadi script ini menyalin `GOOGLE_*` dari `.env.prod` ke `./.secrets/` (gitignored) lalu meneruskannya ke `docker compose build` sebagai BuildKit secret — pastikan `.env.prod` sudah terisi kredensial Google yang valid sebelum menjalankan ini:
+   ```
+   chmod +x build.sh   # sekali saja
+   ./build.sh
+   ```
+4. Di Azure Portal App Registration → **Authentication**, tambah redirect URI `https://room-booking.fitcorpora.com/api/auth/callback/azure-ad`.
+5. Di Cloudflare, arahkan DNS record `room-booking.fitcorpora.com` (proxied) ke IP host, port `8080` (port Traefik di `docker-compose.traefik.yml`).
+
 ## Integrasi Microsoft Teams (silent SSO)
 
 Aplikasi bisa di-embed sebagai tab Teams dengan login otomatis (tanpa klik apa pun) memakai identitas Teams yang sedang aktif. Ini murni tambahan — tidak mengubah `/login`, `middleware.ts`, atau `/display/[id]`.
