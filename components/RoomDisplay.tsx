@@ -115,9 +115,18 @@ export default function RoomDisplay({
     <main className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6 sm:p-10 md:flex-row md:gap-12">
       {/* left: identity, clock, status */}
       <section
-        className="flex min-w-0 flex-col justify-center gap-6 break-words text-center md:w-[40%] md:border-r md:pr-12 md:text-left"
+        className="flex min-w-0 flex-col justify-center gap-6 break-words text-center md:w-[40%] md:shrink-0 md:border-r md:pr-12 md:text-left"
         style={{ containerType: "inline-size" }}
       >
+        {/* md:shrink-0 is load-bearing: overflow-wrap:break-word (from
+            break-words above) makes the browser treat this column's
+            min-content width as almost nothing, since any word can now be
+            broken anywhere. Without shrink-0, a long two-word booker name
+            (e.g. two long real names, not one glued-together word) makes
+            the flex layout collapse this whole column down toward that
+            near-zero min-content instead of holding at w-[40%] — so the
+            clock/status appear to "overflow" because their container
+            shrank, not because the text itself grew past it. */}
         {/* break-words (overflow-wrap) is inherited, so it also covers the
             booker name below — without it, a very long unbroken word (a
             typo'd name with no spaces, e.g. from a mistyped booking) would
