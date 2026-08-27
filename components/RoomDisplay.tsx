@@ -112,12 +112,18 @@ export default function RoomDisplay({
     : "";
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-6 sm:p-10 md:flex-row md:gap-12">
+    <main className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6 sm:p-10 md:flex-row md:gap-12">
       {/* left: identity, clock, status */}
       <section
-        className="flex flex-col justify-center gap-6 text-center md:w-[40%] md:border-r md:pr-12 md:text-left"
+        className="flex min-w-0 flex-col justify-center gap-6 break-words text-center md:w-[40%] md:border-r md:pr-12 md:text-left"
         style={{ containerType: "inline-size" }}
       >
+        {/* break-words (overflow-wrap) is inherited, so it also covers the
+            booker name below — without it, a very long unbroken word (a
+            typo'd name with no spaces, e.g. from a mistyped booking) would
+            overflow past both edges of this centered/left-aligned column
+            instead of wrapping, since there's no space for the browser to
+            break the line at. */}
         <div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {room.name}
@@ -154,7 +160,7 @@ export default function RoomDisplay({
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-3 md:items-start">
+        <div className="flex min-w-0 w-full flex-col items-center gap-3 md:items-start">
           <span
             className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-base font-medium text-white sm:text-lg ${
               isInUse ? "bg-red-600" : "bg-emerald-600"
@@ -163,7 +169,7 @@ export default function RoomDisplay({
             <span className="h-2.5 w-2.5 rounded-full bg-white/80" />
             {isInUse ? "Sedang Dipakai" : "Tersedia"}
           </span>
-          <p className="text-base text-muted-foreground sm:text-lg">
+          <p className="w-full min-w-0 text-base text-muted-foreground sm:text-lg">
             {currentBooking ? (
               <>
                 Dipakai oleh{" "}
@@ -189,7 +195,7 @@ export default function RoomDisplay({
       </section>
 
       {/* right: today's agenda */}
-      <section className="flex flex-1 flex-col">
+      <section className="flex min-h-0 flex-1 flex-col">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Jadwal Hari Ini
