@@ -1,6 +1,6 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import BookingModal from "./BookingModal";
@@ -199,6 +199,9 @@ export default function SearchBooking({
 }: {
   initialRooms: Room[];
 }) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin ?? false;
+
   const [rooms] = useState(initialRooms);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -311,6 +314,22 @@ export default function SearchBooking({
             >
               Jadwal
             </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  href="/approval"
+                  className="hidden h-8 items-center justify-center rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+                >
+                  Persetujuan
+                </Link>
+                <Link
+                  href="/admin/rooms"
+                  className="hidden h-8 items-center justify-center rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex"
+                >
+                  Kelola Ruangan
+                </Link>
+              </>
+            )}
             <span className="mx-1 hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
             <ThemeToggle />
             <button
@@ -347,6 +366,22 @@ export default function SearchBooking({
         >
           Jadwal
         </Link>
+        {isAdmin && (
+          <>
+            <Link
+              href="/approval"
+              className="inline-flex h-8 flex-1 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Persetujuan
+            </Link>
+            <Link
+              href="/admin/rooms"
+              className="inline-flex h-8 flex-1 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Kelola Ruangan
+            </Link>
+          </>
+        )}
       </div>
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">

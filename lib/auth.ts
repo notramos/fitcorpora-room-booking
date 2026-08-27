@@ -23,6 +23,11 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, profile }) {
       if (profile) {
         const roles = (profile as { roles?: unknown }).roles;
+        // TEMP DEBUG: remove once admin role detection is confirmed working
+        // — prints exactly what Azure AD sent in the id_token so a missing/
+        // misnamed App Role assignment shows up immediately in the server
+        // logs instead of just silently resulting in isAdmin: false.
+        console.log("[auth debug] profile.roles from Azure AD:", roles);
         token.isAdmin =
           Array.isArray(roles) && roles.includes("Admin");
       }
