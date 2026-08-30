@@ -1,7 +1,9 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import EditBookingModal from "./EditBookingModal";
 import ThemeToggle from "./ThemeToggle";
 import { todayStr, toMinutes } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
@@ -20,10 +22,29 @@ export default function ScheduleOverview({
 }: {
   initialRooms: Room[];
 }) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin ?? false;
+  const myEmail = session?.user?.email ?? null;
+
+  function canManage(b: Booking): boolean {
+    return isAdmin || (!!myEmail && b.bookerEmail === myEmail);
+  }
+
   const [rooms] = useState(initialRooms);
   const [date, setDate] = useState(todayStr);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Booking | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function loadBookings() {
+    setLoading(true);
+    fetch(`/api/bookings?date=${date}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Booking[]) => setBookings(data))
+      .catch(() => setBookings([]))
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +64,22 @@ export default function ScheduleOverview({
       cancelled = true;
     };
   }, [date]);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Hapus booking ini?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadBookings();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? "Gagal menghapus booking.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const byRoom = useMemo(() => {
     return rooms.map((room) => {
@@ -154,6 +191,25 @@ export default function ScheduleOverview({
                           {b.purpose}
                         </p>
                       )}
+                      {canManage(b) && (
+                        <div className="mt-1.5 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditing(b)}
+                            className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                          >
+                            Ubah
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingId === b.id}
+                            onClick={() => handleDelete(b.id)}
+                            className="text-xs font-medium text-red-600 underline-offset-2 hover:underline disabled:opacity-50 dark:text-red-400"
+                          >
+                            {deletingId === b.id ? "Menghapus…" : "Hapus"}
+                          </button>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -161,6 +217,14 @@ export default function ScheduleOverview({
             </div>
           ))}
         </div>
+      )}
+
+      {editing && (
+        <EditBookingModal
+          booking={editing}
+          onClose={() => setEditing(null)}
+          onSaved={loadBookings}
+        />
       )}
     </div>
   );

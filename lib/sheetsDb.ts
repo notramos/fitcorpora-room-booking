@@ -214,6 +214,11 @@ export async function getBookings(filter?: {
   return bookings;
 }
 
+export async function getBookingById(id: string): Promise<Booking | undefined> {
+  const bookings = await getBookings({});
+  return bookings.find((b) => b.id === id);
+}
+
 // Approved, today's bookings starting within the next `windowMinutes` that
 // haven't had their "meeting starts soon" Teams DM sent yet. Meant to be
 // polled by an external scheduler (see app/api/cron/reminders) — since a
@@ -360,6 +365,102 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
     }
 
     return booking;
+  });
+}
+
+// Lets the booker (or an admin) change date/time/purpose on an existing
+// booking. Ownership is enforced by the caller (the API route) — this
+// function just does the write. Re-validates against the same rules as
+// createBooking (past date, start<end, business hours/overtime, conflicts),
+// excluding the booking's own row from the conflict check so it doesn't
+// collide with itself.
+export function updateBooking(
+  id: string,
+  input: { date: string; startTime: string; endTime: string; purpose: string }
+): Promise<Booking> {
+  return withLock(async () => {
+    if (input.date < todayStr()) {
+      throw new Error("Tidak bisa booking untuk tanggal yang sudah lewat.");
+    }
+    if (input.date === todayStr()) {
+      const nowMinutes = nowMinutesInAppTimezone();
+      if (toMinutes(input.endTime) <= nowMinutes) {
+        throw new Error("Jam ini sudah lewat untuk hari ini.");
+      }
+    }
+    if (toMinutes(input.startTime) >= toMinutes(input.endTime)) {
+      throw new Error("Jam mulai harus lebih awal dari jam selesai.");
+    }
+
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: BOOKINGS_RANGE,
+    });
+    const rows = res.data.values ?? [];
+    const dataRows = rows.slice(1);
+    const rowIndex = dataRows.findIndex((row) => row[0] === id);
+    if (rowIndex === -1) {
+      throw new Error("Booking tidak ditemukan.");
+    }
+
+    const existingBooking = toBooking(dataRows[rowIndex] as string[]);
+
+    const isOutsideBusinessHours =
+      toMinutes(input.startTime) < toMinutes(BUSINESS_START) ||
+      toMinutes(input.endTime) > toMinutes(BUSINESS_END);
+    if (isOutsideBusinessHours && !existingBooking.isOvertime) {
+      throw new Error(
+        `Booking hanya bisa dilakukan pukul ${BUSINESS_HOURS_LABEL}. Untuk jam di luar itu, ajukan sebagai overtime.`
+      );
+    }
+
+    const allBookings = dataRows.map((row) => toBooking(row as string[]));
+    const conflict = allBookings.find(
+      (b) =>
+        b.id !== id &&
+        b.roomId === existingBooking.roomId &&
+        b.date === input.date &&
+        overlaps(input.startTime, input.endTime, b.startTime, b.endTime)
+    );
+    if (conflict) {
+      throw new BookingConflictError(
+        `Ruangan sudah dipakai oleh ${conflict.bookerName} pukul ${conflict.startTime}-${conflict.endTime}.`,
+        conflict
+      );
+    }
+
+    const updated: Booking = {
+      ...existingBooking,
+      date: input.date,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      purpose: input.purpose,
+    };
+
+    // Keep an existing calendar invite in sync: drop the stale one and
+    // create a fresh one at the new time. Best-effort, same tradeoff as
+    // elsewhere — a failed Graph call shouldn't block saving the edit.
+    if (updated.status === "approved" && updated.graphEventId) {
+      await deleteCalendarEvent(
+        updated.bookerEmail,
+        updated.graphEventId
+      ).catch(() => undefined);
+      const room = await getRoomById(updated.roomId);
+      updated.graphEventId = room
+        ? await createCalendarEvent(updated, room).catch(() => undefined)
+        : undefined;
+    }
+
+    const sheetRowNumber = rowIndex + 2; // +1 for header, +1 for 1-indexing
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Bookings!A${sheetRowNumber}:N${sheetRowNumber}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [bookingToRow(updated)] },
+    });
+
+    return updated;
   });
 }
 
