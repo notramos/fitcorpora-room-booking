@@ -3,9 +3,9 @@ import type { DefaultSession } from "next-auth";
 declare module "next-auth" {
   interface Session {
     user: DefaultSession["user"] & {
-      // True when the signed-in user's Azure AD "roles" claim includes the
-      // "Admin" App Role (see lib/auth.ts). Gates /admin/rooms and the
-      // room-management + booking-approval API routes.
+      // True when the signed-in user's email is in the ADMIN_EMAILS
+      // allowlist (see lib/auth.ts). Gates /admin/*, the room-management
+      // API, and booking approval.
       isAdmin?: boolean;
     };
   }

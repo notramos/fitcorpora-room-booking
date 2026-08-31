@@ -27,9 +27,12 @@ Browser (login Microsoft)
    AZURE_AD_TENANT_ID=...
    NEXTAUTH_SECRET=...
    NEXTAUTH_URL=http://localhost:3000
+   ADMIN_EMAILS=you@fitcorpora.com
    DATABASE_URL=postgres://booking:booking@localhost:5432/booking
    DATABASE_SSL=
    ```
+   `ADMIN_EMAILS` is a comma-separated allowlist — those accounts get
+   `/admin/*`, room management, and booking approval.
    Generate `NEXTAUTH_SECRET` (Windows PowerShell, tanpa openssl):
    ```powershell
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
