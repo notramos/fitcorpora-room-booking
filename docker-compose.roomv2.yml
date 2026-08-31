@@ -1,0 +1,38 @@
+# Parallel TEST stack for https://roomv2.fitcorpora.com — runs alongside the
+# existing room.fitcorpora.com deployment on the same host without touching
+# it. Distinct container name, image tag, and Traefik router/service names,
+# so nothing collides with the primary stack.
+#
+# Data store: the external RDS Postgres (no bundled `db` service here). Set
+# DATABASE_URL + DATABASE_SSL=true in .env.prod.
+#
+# Run from a SEPARATE checkout directory (or pass `-p roomv2`):
+#   cp .env.prod.example .env.prod   # NEXTAUTH_URL, DATABASE_URL, DATABASE_SSL=true, AZURE_*, NEXTAUTH_SECRET
+#   docker compose -f docker-compose.roomv2.yml build
+#   docker compose -f docker-compose.roomv2.yml up -d
+#
+# Uses the already-running Traefik and its `le` cert resolver, so a cert for
+# roomv2.fitcorpora.com is issued automatically. No Traefik changes needed.
+services:
+  app:
+    build:
+      context: .
+    image: room-booking-system:roomv2
+    container_name: room-booking-roomv2
+    expose:
+      - "3000"
+    env_file: ./.env.prod
+    restart: unless-stopped
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.room-booking-roomv2.rule=Host(`roomv2.fitcorpora.com`)
+      - traefik.http.routers.room-booking-roomv2.entrypoints=websecure
+      - traefik.http.routers.room-booking-roomv2.tls.certresolver=le
+      - traefik.http.services.room-booking-roomv2.loadbalancer.server.port=3000
+
+networks:
+  traefik-public:
+    external: true
