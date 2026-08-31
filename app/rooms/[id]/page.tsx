@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getBookings, getRoomById } from "@/lib/sheetsDb";
+import { getBookings, getRoomById } from "@/lib/db";
 import RoomDetail from "@/components/RoomDetail";
 
 export default async function RoomDetailPage({

@@ -28,7 +28,7 @@ export default function AdminRoomsManager({
   async function handleDelete(room: Room) {
     if (
       !confirm(
-        `Hapus "${room.name}"? Booking yang sudah ada untuk ruangan ini tidak akan ikut terhapus, tapi jadi tidak terhubung ke ruangan manapun.`
+        `Hapus "${room.name}"? Semua booking untuk ruangan ini akan ikut terhapus.`
       )
     ) {
       return;

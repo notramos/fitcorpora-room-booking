@@ -18,18 +18,14 @@ COPY . .
 ARG NEXT_PUBLIC_TEAMS_APP_ID_URI
 ENV NEXT_PUBLIC_TEAMS_APP_ID_URI=$NEXT_PUBLIC_TEAMS_APP_ID_URI
 ENV NEXT_TELEMETRY_DISABLED=1
+# Small hosts (1-2 GB RAM) OOM in `next build`'s type-check phase at Node's
+# auto-tuned heap limit; raise it and lean on swap.
+ENV NODE_OPTIONS=--max-old-space-size=3072
 
-# app/display/page.tsx statically prerenders using a real Google Sheets
-# fetch (getRooms()), so `next build` needs live GOOGLE_* credentials even
-# though they're also supplied via env_file at container start. Passed as
-# BuildKit secrets so they never land in an image layer or build cache.
-RUN --mount=type=secret,id=google_sa_email \
-    --mount=type=secret,id=google_private_key \
-    --mount=type=secret,id=google_sheet_id \
-    export GOOGLE_SERVICE_ACCOUNT_EMAIL="$(cat /run/secrets/google_sa_email)" && \
-    export GOOGLE_PRIVATE_KEY="$(cat /run/secrets/google_private_key)" && \
-    export GOOGLE_SHEET_ID="$(cat /run/secrets/google_sheet_id)" && \
-    npm run build
+# No database access needed at build time: the pages that read data
+# (app/display/*, app/admin/*, dashboard) are all `dynamic = "force-dynamic"`
+# or session-gated, so nothing is prerendered against Postgres.
+RUN npm run build
 
 # ---- Runtime ------------------------------------------------------------
 FROM base AS runner

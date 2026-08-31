@@ -3,7 +3,7 @@ import type { Booking } from "./types";
 // Business/operating hours — the building's lights shut off at 18:00, so
 // normal bookings are confined to 08:00–18:00. A request outside this
 // window isn't rejected outright; it's routed through the overtime flow
-// instead (see BUSINESS_START/BUSINESS_END below and lib/sheetsDb.ts's
+// instead (see BUSINESS_START/BUSINESS_END below and lib/db.ts's
 // createBooking).
 export const START_HOUR = 8;
 export const END_HOUR = 18;

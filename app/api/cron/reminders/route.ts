@@ -3,7 +3,7 @@ import {
   getBookingsDueForReminder,
   getRoomById,
   markReminderSent,
-} from "@/lib/sheetsDb";
+} from "@/lib/db";
 import { notifyMeetingReminder } from "@/lib/teamsNotify";
 
 // How far ahead of a meeting's start time the reminder goes out. Call this

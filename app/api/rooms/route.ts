@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createRoom, getRooms } from "@/lib/sheetsDb";
+import { createRoom, getRooms } from "@/lib/db";
 import type { CreateRoomInput } from "@/lib/types";
 
 export async function GET() {

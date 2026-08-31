@@ -1,6 +1,6 @@
 # Sistem Booking Ruangan Kantor
 
-Aplikasi booking ruangan kantor: satu app Next.js (App Router), login Microsoft Entra ID (Azure AD) via NextAuth, dan **Google Sheets** sebagai database — tanpa server database terpisah, dan cocok untuk deploy ke platform serverless seperti Vercel.
+Aplikasi booking ruangan kantor: satu app Next.js (App Router), login Microsoft Entra ID (Azure AD) via NextAuth, dan **PostgreSQL** sebagai database. Skema tabel dibuat otomatis oleh aplikasi saat pertama kali connect — tidak perlu menjalankan migration manual.
 
 ## Arsitektur
 
@@ -11,15 +11,15 @@ Browser (login Microsoft)
         -> / — Dashboard (server component ambil session + data ruangan)
         -> /api/rooms, /api/bookings, /api/bookings/[id]
    -> NextAuth + Azure AD (autentikasi, session JWT)
-   -> lib/sheetsDb.ts (baca/tulis + lock in-process + validasi bentrok)
-        -> Google Sheets API (tab Rooms, tab Bookings) via service account
+   -> lib/db.ts (baca/tulis + lock in-process + transaksi + validasi bentrok)
+        -> PostgreSQL (tabel rooms, bookings) via connection pool (paket `pg`)
 ```
 
 ## Setup
 
 1. Buat **App Registration** di https://entra.microsoft.com (Applications > App registrations), catat **Client ID**, **Tenant ID**, dan buat **Client Secret**.
 2. Tambahkan Redirect URI: `http://localhost:3000/api/auth/callback/azure-ad`.
-3. Setup **Google Sheets** sebagai database — lihat bagian "Setup Google Sheets" di bawah.
+3. Setup **PostgreSQL** sebagai database — lihat bagian "Setup PostgreSQL" di bawah.
 4. Salin `.env.local.example` ke `.env.local` dan isi:
    ```
    AZURE_AD_CLIENT_ID=...
@@ -27,9 +27,8 @@ Browser (login Microsoft)
    AZURE_AD_TENANT_ID=...
    NEXTAUTH_SECRET=...
    NEXTAUTH_URL=http://localhost:3000
-   GOOGLE_SERVICE_ACCOUNT_EMAIL=...
-   GOOGLE_PRIVATE_KEY=...
-   GOOGLE_SHEET_ID=...
+   DATABASE_URL=postgres://booking:booking@localhost:5432/booking
+   DATABASE_SSL=
    ```
    Generate `NEXTAUTH_SECRET` (Windows PowerShell, tanpa openssl):
    ```powershell
@@ -42,30 +41,74 @@ Browser (login Microsoft)
    ```
 6. Buka `http://localhost:3000` — akan redirect ke `/login`, masuk dengan akun Microsoft.
 
-## Setup Google Sheets
+## Setup PostgreSQL
 
-1. Buat project di https://console.cloud.google.com, aktifkan **Google Sheets API** (APIs & Services → Library).
-2. **IAM & Admin → Service Accounts → Create Service Account**. Tidak perlu role IAM apa pun (akses diatur lewat "Share" di langkah 4).
-3. Buka service account itu → tab **Keys → Add Key → Create new key → JSON** — file akan ter-download sekali, simpan baik-baik. Catat `client_email` dan `private_key` dari isinya.
-4. Buat Google Sheet baru dengan 2 tab persis bernama `Rooms` dan `Bookings`, dengan header di baris 1:
-   - `Rooms`: `id`, `name`, `location`, `capacity`
-   - `Bookings`: `id`, `roomId`, `date`, `startTime`, `endTime`, `purpose`, `bookerName`, `bookerEmail`, `createdAt`
-5. Klik **Share** pada sheet itu, tambahkan `client_email` dari langkah 3 sebagai **Editor**.
-6. Ambil `GOOGLE_SHEET_ID` dari URL sheet (`https://docs.google.com/spreadsheets/d/<INI>/edit`).
-7. Isi `.env.local`:
-   ```
-   GOOGLE_SERVICE_ACCOUNT_EMAIL=<client_email>
-   GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-   GOOGLE_SHEET_ID=<sheet id>
-   ```
-   `GOOGLE_PRIVATE_KEY` disimpan sebagai satu baris dengan `\n` **literal** (bukan newline sungguhan, persis seperti di file JSON) — kode akan otomatis mengubahnya jadi newline asli saat dibaca.
+Butuh satu database PostgreSQL (versi 13+). Aplikasi membuat sendiri tabel
+`rooms` dan `bookings` (`CREATE TABLE IF NOT EXISTS`) saat pertama kali
+connect, jadi tidak ada langkah migration manual. Skema referensi ada di
+[`db/schema.sql`](db/schema.sql).
 
-3 ruangan contoh otomatis ditambahkan ke tab `Rooms` saat pertama kali aplikasi mengakses data (kalau tab itu masih kosong).
+**Opsi A — Postgres lokal via Docker (paling cepat untuk dev):**
+
+```bash
+docker run --name booking-pg -e POSTGRES_USER=booking \
+  -e POSTGRES_PASSWORD=booking -e POSTGRES_DB=booking \
+  -p 5432:5432 -d postgres:17-alpine
+```
+
+Lalu di `.env.local`:
+
+```
+DATABASE_URL=postgres://booking:booking@localhost:5432/booking
+DATABASE_SSL=
+```
+
+**Opsi B — Postgres terkelola (Neon, Supabase, RDS, Vercel Postgres, dll.):**
+pakai connection string dari provider, dan set `DATABASE_SSL=true` kalau
+provider mewajibkan TLS:
+
+```
+DATABASE_URL=postgres://user:pass@host:5432/dbname
+DATABASE_SSL=true
+```
+
+3 ruangan contoh otomatis ditambahkan ke tabel `rooms` saat pertama kali
+aplikasi mengakses data (kalau tabel itu **masih kosong**).
+
+## Migrasi data dari Google Sheets (sekali jalan)
+
+Kalau sudah ada data produksi di Google Sheet versi lama, jalankan
+[`scripts/migrate-sheets-to-postgres.mjs`](scripts/migrate-sheets-to-postgres.mjs)
+**sebelum** mengarahkan trafik ke versi Postgres. Script ini menyalin
+semua baris `Rooms` dan `Bookings` apa adanya — **id dipertahankan**, jadi
+link kiosk `/display/[id]` dan antrean approval yang pending tetap valid.
+
+```bash
+npm ci   # butuh `googleapis` (devDependency) + `pg`
+GOOGLE_SERVICE_ACCOUNT_EMAIL=... \
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n" \
+GOOGLE_SHEET_ID=... \
+DATABASE_URL=postgres://user:pass@host:5432/db \
+DATABASE_SSL=true \
+node scripts/migrate-sheets-to-postgres.mjs
+```
+
+Aman dijalankan ulang: insert pakai `ON CONFLICT (id) DO NOTHING`, jadi run
+kedua hanya mengisi baris yang belum ada dan tidak menimpa data yang sudah
+ditulis app. Kalau tabel Postgres masih kosong saat script jalan, seeding 3
+ruangan contoh **tidak** terjadi (hanya jalan kalau app yang pertama kali
+menyentuh tabel kosong) — data sheet yang jadi isinya.
+
+Verifikasi setelah migrasi:
+
+```bash
+psql "$DATABASE_URL" -c "SELECT count(*) FROM rooms; SELECT count(*) FROM bookings;"
+```
 
 ## Deploy ke Vercel
 
 1. Push repo ke GitHub, import project di dashboard Vercel (atau `vercel` CLI).
-2. Isi semua env var dari `.env.local` di Vercel Project Settings → Environment Variables — paste `GOOGLE_PRIVATE_KEY` apa adanya dengan `\n` literal, jangan biarkan Vercel "merapikan" jadi multi-baris.
+2. Isi semua env var dari `.env.local` di Vercel Project Settings → Environment Variables. Untuk `DATABASE_URL` pakai Postgres terkelola (mis. Vercel Postgres atau Neon) dan set `DATABASE_SSL=true`. Serverless bikin banyak koneksi singkat — pakai endpoint pooler dari provider kalau ada.
 3. Deploy, catat domain `https://<project>.vercel.app` (atau custom domain).
 4. Di Azure Portal App Registration → **Authentication** → tambah redirect URI `https://<domain>/api/auth/callback/azure-ad`.
 5. Update `NEXTAUTH_URL` di Vercel ke domain itu persis (termasuk `https://`, tanpa trailing slash), lalu redeploy.
@@ -74,21 +117,35 @@ Browser (login Microsoft)
 
 ## Deploy dengan Docker
 
-Setup ini mengasumsikan Traefik sebagai reverse proxy bersama (satu Traefik untuk beberapa app di host yang sama) dan Cloudflare yang menangani TLS/DNS di depan (proxied, diarahkan ke `http://<host>:8080`).
+Deploy ke satu VPS/EC2 dengan Traefik sebagai reverse proxy dan TLS otomatis
+dari Let's Encrypt. Domain produksi: **https://room.fitcorpora.com**. Langkah
+lengkap khusus EC2 (security group, install Docker, DNS, swap) ada di
+[`DEPLOY.md`](DEPLOY.md). Ringkasnya:
 
-1. Sekali per host, jalankan Traefik:
+1. DNS: A record `room.fitcorpora.com` → IP publik host (Elastic IP). Kalau
+   pakai Cloudflare, set **DNS only** (bukan proxied) supaya ACME HTTP
+   challenge bisa masuk.
+2. Buka port `80` dan `443` di firewall/security group.
+3. Sekali per host, jalankan Traefik (`ACME_EMAIL` = alamat kontak Let's
+   Encrypt):
    ```
-   docker network create traefik-public   # sekali saja kalau network belum ada
-   docker compose -f docker-compose.traefik.yml up -d
+   docker network create traefik-public
+   ACME_EMAIL=you@fitcorpora.com docker compose -f docker-compose.traefik.yml up -d
    ```
-2. Salin `.env.prod` (sudah di-gitignore) dan isi semua value — `NEXTAUTH_URL` sudah di-set ke `https://room-booking.fitcorpora.com`, tinggal isi secret Azure AD dan Google Sheets seperti di `.env.local`.
-3. Build & jalankan app-nya lewat `./build.sh`. `app/display` melakukan fetch Google Sheets saat *build* (prerender), jadi script ini menyalin `GOOGLE_*` dari `.env.prod` ke `./.secrets/` (gitignored) lalu meneruskannya ke `docker compose build` sebagai BuildKit secret — pastikan `.env.prod` sudah terisi kredensial Google yang valid sebelum menjalankan ini:
+4. Salin `.env.prod.example` → `.env.prod` (gitignored) dan isi semua value.
+   `NEXTAUTH_URL` harus persis `https://room.fitcorpora.com`. Biarkan
+   `DATABASE_URL=postgres://booking:booking@db:5432/booking` untuk memakai
+   service `db` (Postgres) yang ikut jalan di `docker-compose.yml`.
+5. Build & jalankan (app + Postgres) lewat `./build.sh` — tidak perlu secret
+   saat build karena semua data dibaca dari Postgres saat runtime:
    ```
    chmod +x build.sh   # sekali saja
    ./build.sh
    ```
-4. Di Azure Portal App Registration → **Authentication**, tambah redirect URI `https://room-booking.fitcorpora.com/api/auth/callback/azure-ad`.
-5. Di Cloudflare, arahkan DNS record `room-booking.fitcorpora.com` (proxied) ke IP host, port `8080` (port Traefik di `docker-compose.traefik.yml`).
+   Data Postgres persisten di volume `pgdata`. Untuk backup: `docker exec
+   room-booking-db pg_dump -U booking booking > backup.sql`.
+6. Di Azure Portal App Registration → **Authentication**, tambah redirect URI
+   `https://room.fitcorpora.com/api/auth/callback/azure-ad`.
 
 ## Integrasi Microsoft Teams (silent SSO)
 
@@ -135,17 +192,22 @@ app/
   rooms/[id]/page.tsx             # halaman detail ruangan
   display/[id]/page.tsx           # tampilan tablet/kiosk (publik, tanpa login)
   teams/page.tsx                  # entry tab Microsoft Teams (silent SSO)
+  approval/page.tsx               # antrean persetujuan (admin) — booking pending
+  admin/rooms/page.tsx            # kelola ruangan (admin)
+  admin/bookings/page.tsx         # kelola SEMUA booking (admin) — cari/ubah/hapus/setujui
   api/auth/[...nextauth]/         # konfigurasi NextAuth
   api/auth/teams/route.ts         # verifikasi token Teams SSO -> cookie session
   api/rooms/route.ts              # GET daftar ruangan
   api/bookings/route.ts           # GET & POST booking
-  api/bookings/[id]/route.ts      # DELETE booking
+  api/bookings/[id]/route.ts      # PATCH & DELETE booking
+  api/bookings/[id]/approve|reject|reset-reminder/route.ts   # aksi admin
 components/
-  Dashboard.tsx, RoomCard.tsx, RoomDetail.tsx, RoomDisplay.tsx, BookingModal.tsx,
-  RealtimeClock.tsx, StatusBadge.tsx, AuthProvider.tsx
+  SearchBooking.tsx, RoomDetail.tsx, RoomDisplay.tsx, BookingModal.tsx,
+  EditBookingModal.tsx, ApprovalQueue.tsx, AdminRoomsManager.tsx,
+  AdminBookingsManager.tsx, RealtimeClock.tsx, StatusBadge.tsx, AuthProvider.tsx
 lib/
   auth.ts                         # authOptions NextAuth (Azure AD provider)
-  sheetsDb.ts                     # semua baca/tulis ke Google Sheets (lock + validasi bentrok)
+  db.ts                           # semua baca/tulis ke PostgreSQL (pool + lock + transaksi + validasi bentrok)
   roomStatus.ts                   # perhitungan status Tersedia/Sedang Dipakai
   teamsAuth.ts                    # verifikasi token Teams SSO (jose + JWKS Azure AD)
   types.ts                        # tipe Room, Booking
@@ -157,5 +219,6 @@ middleware.ts                      # proteksi semua route kecuali /login (saat i
 ## Keputusan desain yang perlu diketahui
 
 - **Hapus booking**: semua user yang sudah login boleh membatalkan booking ruangan manapun (tidak ada pengecekan kepemilikan), karena spesifikasi tidak mendefinisikan model role/kepemilikan dan ini adalah tool internal skala kecil. Untuk membatasi hanya pemesan asli yang bisa membatalkan, tambahkan pengecekan `session.user.email === booking.bookerEmail` di `app/api/bookings/[id]/route.ts` sebelum memanggil `deleteBooking`.
-- **Lock in-process**: `lib/sheetsDb.ts` menggunakan antrian promise in-process (`withLock`) untuk mencegah dua booking simultan dalam proses yang sama saling menimpa. Ini **hanya** melindungi dalam satu instance/proses Node — tidak melindungi lintas banyak instance serverless yang jalan bersamaan (mis. di Vercel). Google Sheets API sendiri juga tidak punya row-level lock. Ini tetap peningkatan nyata dibanding file lokal: sekarang semua instance baca/tulis ke sumber yang sama dan benar-benar persisten, walau race condition di jendela waktu yang sangat sempit tetap mungkin terjadi pada volume tinggi.
-- Google Sheets API punya quota per-project (ratusan request/menit) — cukup untuk tool booking kantor skala kecil-menengah, bukan untuk volume sangat tinggi. Jika kebutuhan berkembang, pertimbangkan migrasi ke database asli (Postgres/MySQL/SQLite, mis. Vercel Postgres atau Neon).
+- **Anti double-booking**: `lib/db.ts` masih memakai antrian promise in-process (`withLock`) untuk serialisasi dalam satu proses, tapi `createBooking` / `updateBooking` sekarang jalan dalam satu **transaksi PostgreSQL** dengan `pg_advisory_xact_lock` per-ruangan — jadi cek bentrok + insert bersifat atomik dan aman lintas banyak instance sekaligus (mis. serverless), bukan lagi best-effort seperti di Google Sheets.
+- **Skema otomatis**: tidak ada tool migration. `lib/db.ts` menjalankan `CREATE TABLE IF NOT EXISTS` sekali per proses saat pertama connect, dan seeding 3 ruangan contoh dilindungi advisory lock supaya dua instance tidak balapan. Kalau nanti butuh perubahan skema yang tidak idempotent, tambahkan tool migration (mis. `node-pg-migrate` atau Drizzle) dan hapus DDL inline itu.
+- **Kelola booking tanpa buka database**: dulu memperbaiki/menghapus booking sembarang (ruangan apa pun, tanggal apa pun) berarti buka spreadsheet dan edit baris langsung. Penggantinya adalah halaman **`/admin/bookings`** (khusus admin): cari, ubah, hapus, setujui, dan atur ulang flag pengingat untuk booking mana pun.

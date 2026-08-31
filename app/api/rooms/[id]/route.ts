@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { deleteRoom, updateRoom } from "@/lib/sheetsDb";
+import { deleteRoom, updateRoom } from "@/lib/db";
 import type { CreateRoomInput } from "@/lib/types";
 
 export async function PATCH(

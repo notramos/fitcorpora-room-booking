@@ -6,7 +6,7 @@ import {
   deleteBooking,
   getBookingById,
   updateBooking,
-} from "@/lib/sheetsDb";
+} from "@/lib/db";
 
 // Admins can edit/delete any booking; everyone else only their own — matched
 // by email since that's the one immutable identifier stamped on a booking at

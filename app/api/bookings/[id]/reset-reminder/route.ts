@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { rejectBooking } from "@/lib/db";
+import { resetReminderSent } from "@/lib/db";
 
+// Admin-only: clears a booking's "reminder already sent" flag so the next
+// reminder cron run DMs the booker again. This is the in-app replacement
+// for opening the old Google Sheet and blanking column K by hand.
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,8 +18,8 @@ export async function POST(
   const { id } = await params;
 
   try {
-    const rejected = await rejectBooking(id);
-    if (!rejected) {
+    const ok = await resetReminderSent(id);
+    if (!ok) {
       return NextResponse.json(
         { error: "Booking tidak ditemukan." },
         { status: 404 }
@@ -25,7 +28,7 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
-      { error: "Gagal menolak booking." },
+      { error: "Gagal mengatur ulang pengingat." },
       { status: 500 }
     );
   }

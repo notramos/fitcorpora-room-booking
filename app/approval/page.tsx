@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPendingBookings, getRooms } from "@/lib/sheetsDb";
+import { getPendingBookings, getRooms } from "@/lib/db";
 import ApprovalQueue from "@/components/ApprovalQueue";
 
 export default async function ApprovalPage() {

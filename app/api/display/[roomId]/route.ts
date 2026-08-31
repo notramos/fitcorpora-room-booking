@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBookings } from "@/lib/sheetsDb";
+import { getBookings } from "@/lib/db";
 import { todayStr } from "@/lib/timeSlots";
 
 // Public, unauthenticated read for the kiosk/tablet display — deliberately

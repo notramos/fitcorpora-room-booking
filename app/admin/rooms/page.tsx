@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getRooms } from "@/lib/sheetsDb";
+import { getRooms } from "@/lib/db";
 import AdminRoomsManager from "@/components/AdminRoomsManager";
 
 export default async function AdminRoomsPage() {

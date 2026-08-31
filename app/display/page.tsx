@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { getRooms } from "@/lib/sheetsDb";
+import { getRooms } from "@/lib/db";
 import CopyLinkButton from "@/components/CopyLinkButton";
+
+// Read from Postgres on each request rather than prerendering at build —
+// the build host has no database, and the kiosk link list should reflect
+// rooms added since the last deploy anyway.
+export const dynamic = "force-dynamic";
 
 // Public index of tablet/kiosk display links, one per room — lets an admin
 // grab each room's /display/[id] URL without needing the raw room ID.

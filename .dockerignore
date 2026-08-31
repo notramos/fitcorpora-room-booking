@@ -10,7 +10,7 @@ coverage
 .env
 .env*
 !.env.local.example
-.secrets/
+!.env.prod.example
 
 *.md
 !README.md

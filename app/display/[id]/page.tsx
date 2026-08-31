@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
-import { getBookings, getRoomById } from "@/lib/sheetsDb";
+import { getBookings, getRoomById } from "@/lib/db";
 import { todayStr } from "@/lib/timeSlots";
 import RoomDisplay from "@/components/RoomDisplay";
+
+// Live room status must never be a stale build-time snapshot, and the
+// build host has no database connection — render on every request.
+export const dynamic = "force-dynamic";
 
 // Public kiosk/tablet view — meant to be mounted at the room entrance.
 // Excluded from the auth middleware so a wall display works without login.

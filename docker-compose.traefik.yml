@@ -8,18 +8,29 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=traefik-public
       - --entrypoints.web.address=:80
-      - --api.dashboard=true
+      - --entrypoints.websecure.address=:443
+      # Redirect all plain HTTP to HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt (ACME HTTP-01 challenge on the :80 entrypoint)
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
     networks:
       - traefik-public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.fitcorpora.com`)"
-      - "traefik.http.routers.traefik-dashboard.service=api@internal"
-      # add basicauth middleware before exposing this publicly
+    # The Traefik dashboard is not exposed. To enable it later, add a
+    # `traefik.<your-domain>` DNS record and a router with a basicauth
+    # middleware pointing at service=api@internal.
+
+volumes:
+  letsencrypt:
 
 networks:
   traefik-public:

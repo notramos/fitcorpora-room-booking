@@ -84,7 +84,15 @@ export default function ApprovalQueue({
           </svg>
           Cari &amp; Booking Ruangan
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/bookings"
+            className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Kelola Semua Booking
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="mb-6">
