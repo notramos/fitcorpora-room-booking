@@ -70,7 +70,10 @@ function ensureSchema(): Promise<void> {
     try {
       await client.query(`
         CREATE TABLE IF NOT EXISTS rooms (
-          id                uuid PRIMARY KEY,
+          -- text, not uuid: ids carried over from the old Google Sheets
+          -- store are plain strings ("1", "2", …), and new ids are
+          -- crypto.randomUUID() strings — both are valid text.
+          id                text PRIMARY KEY,
           name              text    NOT NULL,
           location          text    NOT NULL DEFAULT '',
           capacity          integer NOT NULL DEFAULT 0,
@@ -80,8 +83,8 @@ function ensureSchema(): Promise<void> {
         );
 
         CREATE TABLE IF NOT EXISTS bookings (
-          id             uuid PRIMARY KEY,
-          room_id        uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+          id             text PRIMARY KEY,
+          room_id        text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
           date           text NOT NULL,
           start_time     text NOT NULL,
           end_time       text NOT NULL,

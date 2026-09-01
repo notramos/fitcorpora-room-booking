@@ -7,7 +7,9 @@
 -- read replica or a manual restore).
 
 CREATE TABLE IF NOT EXISTS rooms (
-  id                uuid PRIMARY KEY,
+  -- text, not uuid: ids migrated from the old Google Sheets store are
+  -- plain strings ("1", "2", …); new ids are crypto.randomUUID() strings.
+  id                text PRIMARY KEY,
   name              text    NOT NULL,
   location          text    NOT NULL DEFAULT '',
   capacity          integer NOT NULL DEFAULT 0,
@@ -17,8 +19,8 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
-  id             uuid PRIMARY KEY,
-  room_id        uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  id             text PRIMARY KEY,
+  room_id        text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   date           text NOT NULL,             -- "YYYY-MM-DD" (office timezone)
   start_time     text NOT NULL,             -- "HH:mm"
   end_time       text NOT NULL,             -- "HH:mm"

@@ -81,7 +81,7 @@ function toBooking(row) {
 
 const SCHEMA_DDL = `
   CREATE TABLE IF NOT EXISTS rooms (
-    id                uuid PRIMARY KEY,
+    id                text PRIMARY KEY,
     name              text    NOT NULL,
     location          text    NOT NULL DEFAULT '',
     capacity          integer NOT NULL DEFAULT 0,
@@ -90,8 +90,8 @@ const SCHEMA_DDL = `
     images            text[]  NOT NULL DEFAULT '{}'
   );
   CREATE TABLE IF NOT EXISTS bookings (
-    id             uuid PRIMARY KEY,
-    room_id        uuid NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    id             text PRIMARY KEY,
+    room_id        text NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     date           text NOT NULL,
     start_time     text NOT NULL,
     end_time       text NOT NULL,
