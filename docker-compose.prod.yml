@@ -13,6 +13,11 @@ services:
   app:
     build:
       context: .
+      args:
+        # NEXT_PUBLIC_* is inlined into the client bundle at build time.
+        # `set -a; . ./.env.prod; set +a` before `docker compose build`, or
+        # put the value in a `.env` file next to this compose file.
+        NEXT_PUBLIC_TEAMS_APP_ID_URI: ${NEXT_PUBLIC_TEAMS_APP_ID_URI:-}
     image: room-booking-system:latest
     container_name: room-booking-system
     expose:
