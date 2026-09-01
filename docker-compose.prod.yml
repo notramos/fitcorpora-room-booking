@@ -1,0 +1,34 @@
+# Production stack for https://room.fitcorpora.com backed by an EXTERNAL
+# managed Postgres (RDS) — no bundled `db` service. DATABASE_URL and
+# DATABASE_SSL=true come from .env.prod.
+#
+#   cp .env.prod.example .env.prod   # fill AZURE_*, NEXTAUTH_*, ADMIN_EMAILS, DATABASE_URL, DATABASE_SSL=true
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Uses the already-running Traefik and its `le` cert resolver. Same
+# container / router names as the original stack, so this recreates the
+# `room-booking-system` container in place.
+services:
+  app:
+    build:
+      context: .
+    image: room-booking-system:latest
+    container_name: room-booking-system
+    expose:
+      - "3000"
+    env_file: ./.env.prod
+    restart: unless-stopped
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.room-booking-system.rule=Host(`room.fitcorpora.com`)
+      - traefik.http.routers.room-booking-system.entrypoints=websecure
+      - traefik.http.routers.room-booking-system.tls.certresolver=le
+      - traefik.http.services.room-booking-system.loadbalancer.server.port=3000
+
+networks:
+  traefik-public:
+    external: true
