@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     const roomId = request.nextUrl.searchParams.get("roomId") ?? undefined;
     const date = request.nextUrl.searchParams.get("date") ?? undefined;
-    const bookings = await getBookings({ roomId, date });
+    const dateFrom = request.nextUrl.searchParams.get("dateFrom") ?? undefined;
+    const dateTo = request.nextUrl.searchParams.get("dateTo") ?? undefined;
+    const bookings = await getBookings({ roomId, date, dateFrom, dateTo });
     return NextResponse.json(bookings);
   } catch {
     return NextResponse.json(

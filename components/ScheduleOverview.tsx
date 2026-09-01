@@ -17,6 +17,14 @@ function formatDateLabel(dateStr: string): string {
   });
 }
 
+function formatDateShort(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("id-ID", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function ScheduleOverview({
   initialRooms,
 }: {
@@ -31,15 +39,25 @@ export default function ScheduleOverview({
   }
 
   const [rooms] = useState(initialRooms);
-  const [date, setDate] = useState(todayStr);
+  const [from, setFrom] = useState(todayStr);
+  const [to, setTo] = useState(todayStr);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Booking | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Tolerate the two inputs being set out of order.
+  const lo = from <= to ? from : to;
+  const hi = from <= to ? to : from;
+  const multiDay = lo !== hi;
+
+  function rangeQuery(): string {
+    return lo === hi ? `date=${lo}` : `dateFrom=${lo}&dateTo=${hi}`;
+  }
+
   function loadBookings() {
     setLoading(true);
-    fetch(`/api/bookings?date=${date}`)
+    fetch(`/api/bookings?${rangeQuery()}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Booking[]) => setBookings(data))
       .catch(() => setBookings([]))
@@ -49,7 +67,8 @@ export default function ScheduleOverview({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/bookings?date=${date}`)
+    const query = lo === hi ? `date=${lo}` : `dateFrom=${lo}&dateTo=${hi}`;
+    fetch(`/api/bookings?${query}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Booking[]) => {
         if (!cancelled) setBookings(data);
@@ -63,7 +82,7 @@ export default function ScheduleOverview({
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [lo, hi]);
 
   async function handleDelete(id: string) {
     if (!confirm("Hapus booking ini?")) return;
@@ -85,10 +104,17 @@ export default function ScheduleOverview({
     return rooms.map((room) => {
       const roomBookings = bookings
         .filter((b) => b.roomId === room.id)
-        .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) ||
+            toMinutes(a.startTime) - toMinutes(b.startTime)
+        );
       return { room, bookings: roomBookings };
     });
   }, [rooms, bookings]);
+
+  const dateInputClass =
+    "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:w-auto";
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -121,17 +147,45 @@ export default function ScheduleOverview({
             Kondisi Ruangan
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {formatDateLabel(date)}
+            {multiDay
+              ? `${formatDateShort(lo)} – ${formatDateShort(hi)}`
+              : formatDateLabel(lo)}
           </p>
         </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium leading-none">Tanggal</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:w-auto"
-          />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium leading-none">Dari</label>
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+              className={dateInputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium leading-none">Sampai</label>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              onChange={(e) => setTo(e.target.value)}
+              className={dateInputClass}
+            />
+          </div>
+          {multiDay && (
+            <button
+              type="button"
+              onClick={() => {
+                const t = todayStr();
+                setFrom(t);
+                setTo(t);
+              }}
+              className="inline-flex h-10 items-center justify-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Hari ini
+            </button>
+          )}
         </div>
       </div>
 
@@ -186,6 +240,11 @@ export default function ScheduleOverview({
                           {b.startTime}–{b.endTime}
                         </span>
                       </div>
+                      {multiDay && (
+                        <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+                          {formatDateShort(b.date)}
+                        </p>
+                      )}
                       {b.purpose && (
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {b.purpose}

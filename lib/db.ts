@@ -231,6 +231,11 @@ export async function getRoomById(id: string): Promise<Room | undefined> {
 export async function getBookings(filter?: {
   roomId?: string;
   date?: string;
+  // Inclusive "YYYY-MM-DD" range. The date column is text in ISO order, so
+  // lexical >=/<= is chronological. Combine with `date` at your own risk —
+  // they'd just AND together.
+  dateFrom?: string;
+  dateTo?: string;
   status?: Booking["status"];
 }): Promise<Booking[]> {
   const clauses: string[] = [];
@@ -242,6 +247,14 @@ export async function getBookings(filter?: {
   if (filter?.date) {
     params.push(filter.date);
     clauses.push(`date = $${params.length}`);
+  }
+  if (filter?.dateFrom) {
+    params.push(filter.dateFrom);
+    clauses.push(`date >= $${params.length}`);
+  }
+  if (filter?.dateTo) {
+    params.push(filter.dateTo);
+    clauses.push(`date <= $${params.length}`);
   }
   if (filter?.status) {
     params.push(filter.status);
