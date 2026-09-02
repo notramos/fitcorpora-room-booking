@@ -59,7 +59,6 @@ const labelClass = "text-sm font-medium leading-none";
 interface RoomResult {
   room: Room;
   available: boolean;
-  capacityOk: boolean;
   match: boolean;
   conflict: Booking | null;
 }
@@ -108,7 +107,7 @@ function ResultGroup({
 }
 
 function RoomResultCard({
-  result: { room, available, capacityOk, conflict },
+  result: { room, available, conflict },
   isBest,
   isOvertime,
   onBook,
@@ -166,9 +165,7 @@ function RoomResultCard({
               ? "Di luar jam operasional — perlu diajukan sebagai surat overtime"
               : room.requiresApproval
                 ? "Ruangan terbatas — booking Anda perlu disetujui office management dulu"
-                : capacityOk
-                  ? "Sesuai kebutuhan Anda"
-                  : "Tersedia, tapi kapasitas di bawah yang diminta"
+                : "Sesuai kebutuhan Anda"
             : `Dipakai atau sedang menunggu persetujuan · ${conflict?.bookerName} (${conflict?.startTime}–${conflict?.endTime})`}
         </p>
         <button
@@ -211,7 +208,10 @@ export default function SearchBooking({
   const [endTime, setEndTime] = useState(() =>
     addOneHour(nextRoundedTime(new Date()))
   );
-  const [capacity, setCapacity] = useState(1);
+  // Minimum capacity filter — kept as a string so it can be left blank
+  // (blank = no capacity filter). Blank/invalid parses to 0.
+  const [capacity, setCapacity] = useState("");
+  const minCap = Math.max(0, parseInt(capacity, 10) || 0);
   const [searched, setSearched] = useState(false);
 
   const [bookingRoom, setBookingRoom] = useState<Room | null>(null);
@@ -246,33 +246,33 @@ export default function SearchBooking({
   const results = useMemo<RoomResult[]>(() => {
     if (!searched || invalidRange) return [];
 
-    const scored = rooms.map((room) => {
+    // Rooms below the requested capacity are excluded entirely — the
+    // results only ever show rooms that actually fit.
+    const eligible =
+      minCap > 0 ? rooms.filter((r) => r.capacity >= minCap) : rooms;
+
+    const scored = eligible.map((room) => {
       const roomBookings = bookings.filter((b) => b.roomId === room.id);
       const conflict =
         roomBookings.find((b) =>
           overlaps(startTime, endTime, b.startTime, b.endTime)
         ) ?? null;
       const available = !conflict;
-      const capacityOk = room.capacity >= capacity;
       return {
         room,
         available,
-        capacityOk,
-        match: available && capacityOk,
+        match: available,
         conflict,
       };
     });
 
-    // Prioritize rooms that fully match the search (available + enough
-    // capacity), then rooms with just enough capacity, keeping the rest
-    // visible but lower in the list.
+    // Available rooms first, then smallest-fitting room first so the
+    // tightest match is at the top.
     return scored.sort((a, b) => {
-      if (a.match !== b.match) return a.match ? -1 : 1;
       if (a.available !== b.available) return a.available ? -1 : 1;
-      if (a.capacityOk !== b.capacityOk) return a.capacityOk ? -1 : 1;
       return a.room.capacity - b.room.capacity;
     });
-  }, [searched, invalidRange, rooms, bookings, startTime, endTime, capacity]);
+  }, [searched, invalidRange, rooms, bookings, startTime, endTime, minCap]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -441,14 +441,19 @@ export default function SearchBooking({
             />
           </div>
           <div className="space-y-1.5">
-            <label className={labelClass}>Kapasitas</label>
+            <label className={labelClass}>
+              Kapasitas{" "}
+              <span className="font-normal text-muted-foreground">
+                (opsional)
+              </span>
+            </label>
             <input
-              type="number"
-              min={1}
-              required
+              type="text"
+              inputMode="numeric"
+              placeholder="cth. 6 orang"
               value={capacity}
               onChange={(e) => {
-                setCapacity(Math.max(1, Number(e.target.value) || 1));
+                setCapacity(e.target.value.replace(/\D/g, ""));
                 setSearched(false);
               }}
               className={inputClass}
@@ -503,7 +508,15 @@ export default function SearchBooking({
           </div>
         )}
 
-        {searched && !invalidRange && (
+        {searched && !invalidRange && results.length === 0 && (
+          <p className="mt-8 rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
+            {minCap > 0
+              ? `Tidak ada ruangan dengan kapasitas minimal ${minCap} orang.`
+              : "Tidak ada ruangan."}
+          </p>
+        )}
+
+        {searched && !invalidRange && results.length > 0 && (
           <div className="mt-8 space-y-8">
             <ResultGroup
               title="Tersedia"

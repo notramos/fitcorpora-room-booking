@@ -46,18 +46,6 @@ export const authOptions: NextAuthOptions = {
           p.upn;
         if (email) token.email = email;
         token.isAdmin = isAdminEmail(email);
-        // TEMP DEBUG: remove once admin detection is confirmed. Prints the
-        // candidate claims Entra sent so a claim-name/format mismatch shows
-        // up in the server logs instead of a silent isAdmin:false.
-        console.log("[auth] admin check", {
-          tokenEmail: token.email,
-          "profile.email": p.email,
-          "profile.preferred_username": p.preferred_username,
-          "profile.upn": p.upn,
-          resolved: email,
-          isAdmin: token.isAdmin,
-          adminList: ADMIN_EMAILS,
-        });
       }
       return token;
     },

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminBookingModal from "./AdminBookingModal";
 import EditBookingModal from "./EditBookingModal";
+import Pagination from "./Pagination";
 import ThemeToggle from "./ThemeToggle";
 import type { Booking, Room } from "@/lib/types";
+
+const PAGE_SIZE = 10;
 
 function formatDateLong(d: string): string {
   return new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
@@ -43,6 +46,10 @@ export default function AdminBookingsManager({
   const [roomId, setRoomId] = useState<string>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [date, setDate] = useState<string>("");
+  const [page, setPage] = useState(1);
+
+  // Any filter change jumps back to the first page.
+  useEffect(() => setPage(1), [q, roomId, status, date]);
 
   const roomsById = useMemo(
     () => new Map(rooms.map((r) => [r.id, r])),
@@ -77,6 +84,12 @@ export default function AdminBookingsManager({
           b.startTime.localeCompare(a.startTime)
       );
   }, [bookings, q, roomId, status, date, roomsById]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const filtersActive =
     q.trim() !== "" || roomId !== "all" || status !== "all" || date !== "";
@@ -242,7 +255,7 @@ export default function AdminBookingsManager({
         </p>
       ) : (
         <div className="space-y-3">
-          {filtered.map((b) => {
+          {pageItems.map((b) => {
             const room = roomsById.get(b.roomId);
             return (
               <div
@@ -337,6 +350,8 @@ export default function AdminBookingsManager({
           })}
         </div>
       )}
+
+      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 
       {editing && (
         <EditBookingModal

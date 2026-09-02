@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Pagination from "./Pagination";
 import RoomFormModal from "./RoomFormModal";
 import ThemeToggle from "./ThemeToggle";
 import type { Room } from "@/lib/types";
+
+const PAGE_SIZE = 10;
 
 export default function AdminRoomsManager({
   initialRooms,
@@ -15,6 +18,13 @@ export default function AdminRoomsManager({
   const [formRoom, setFormRoom] = useState<Room | "new" | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const pageCount = Math.max(1, Math.ceil(rooms.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+  const pageRooms = rooms.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function upsert(room: Room) {
     setRooms((prev) => {
@@ -113,7 +123,7 @@ export default function AdminRoomsManager({
       )}
 
       <div className="space-y-3">
-        {rooms.map((room) => (
+        {pageRooms.map((room) => (
           <div
             key={room.id}
             className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -157,6 +167,8 @@ export default function AdminRoomsManager({
           </div>
         ))}
       </div>
+
+      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 
       {formRoom && (
         <RoomFormModal
