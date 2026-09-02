@@ -46,7 +46,14 @@ export async function PATCH(
     );
   }
 
-  let body: { date?: string; startTime?: string; endTime?: string; purpose?: string };
+  let body: {
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    purpose?: string;
+    bookerName?: string;
+    bookerEmail?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -60,12 +67,17 @@ export async function PATCH(
     );
   }
 
+  const isAdmin = !!session.user?.isAdmin;
+
   try {
     const updated = await updateBooking(id, {
       date: body.date,
       startTime: body.startTime,
       endTime: body.endTime,
       purpose: body.purpose ?? "",
+      // Only an admin may reassign who a booking is for.
+      bookerName: isAdmin ? body.bookerName : undefined,
+      bookerEmail: isAdmin ? body.bookerEmail : undefined,
     });
     return NextResponse.json(updated);
   } catch (err) {

@@ -19,7 +19,9 @@ export default function RoomFormModal({
 }) {
   const [name, setName] = useState(room?.name ?? "");
   const [location, setLocation] = useState(room?.location ?? "");
-  const [capacity, setCapacity] = useState(room?.capacity ?? 1);
+  // Kept as a string so the field can be cleared while typing; parsed and
+  // validated on submit.
+  const [capacity, setCapacity] = useState(room ? String(room.capacity) : "");
   const [requiresApproval, setRequiresApproval] = useState(
     room?.requiresApproval ?? false
   );
@@ -41,12 +43,19 @@ export default function RoomFormModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const capacityNum = parseInt(capacity, 10);
+    if (!Number.isFinite(capacityNum) || capacityNum < 1) {
+      setError("Kapasitas minimal 1 orang.");
+      return;
+    }
+
     setSubmitting(true);
 
     const input: CreateRoomInput = {
       name: name.trim(),
       location: location.trim(),
-      capacity: Math.max(1, Number(capacity) || 1),
+      capacity: capacityNum,
       requiresApproval,
       facilities: facilities
         .split(",")
@@ -127,11 +136,14 @@ export default function RoomFormModal({
             <div className="space-y-1.5">
               <label className={labelClass}>Kapasitas</label>
               <input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 required
+                placeholder="20"
                 value={capacity}
-                onChange={(e) => setCapacity(Number(e.target.value))}
+                onChange={(e) =>
+                  setCapacity(e.target.value.replace(/\D/g, ""))
+                }
                 className={inputClass}
               />
             </div>

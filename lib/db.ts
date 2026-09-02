@@ -337,8 +337,14 @@ async function lockRoom(client: PoolClient, roomId: string): Promise<void> {
   ]);
 }
 
-export function createBooking(input: CreateBookingInput): Promise<Booking> {
+export function createBooking(
+  // `forceApproved` (admin-only, set by the API route) confirms the booking
+  // immediately even for approval-required rooms or after-hours slots — used
+  // when an admin logs a walk-in/phone request that must show on the tablet.
+  input: CreateBookingInput & { forceApproved?: boolean }
+): Promise<Booking> {
   return withLock(async () => {
+    const forceApproved = input.forceApproved === true;
     if (input.date < todayStr()) {
       throw new Error("Tidak bisa booking untuk tanggal yang sudah lewat.");
     }
@@ -402,14 +408,25 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
       }
 
       const booking: Booking = {
-        ...input,
+        roomId: input.roomId,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        purpose: input.purpose,
+        bookerName: input.bookerName,
+        bookerEmail: input.bookerEmail,
+        isOvertime: input.isOvertime,
+        overtimeNote: input.overtimeNote,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         // Overtime always needs sign-off, regardless of the room's own
         // requiresApproval setting — after-hours access is a building-wide
-        // concern (lights shut off at 18:00), not a per-room one.
+        // concern (lights shut off at 18:00), not a per-room one. An admin
+        // logging a request on someone's behalf (forceApproved) skips both.
         status:
-          room.requiresApproval || input.isOvertime ? "pending" : "approved",
+          forceApproved || !(room.requiresApproval || input.isOvertime)
+            ? "approved"
+            : "pending",
         reminderSent: false,
       };
 
@@ -470,7 +487,16 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
 // collide with itself.
 export function updateBooking(
   id: string,
-  input: { date: string; startTime: string; endTime: string; purpose: string }
+  input: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    purpose: string;
+    // Admin-only (gated in the API route): correct who the booking is for.
+    // The name is what the tablet display shows.
+    bookerName?: string;
+    bookerEmail?: string;
+  }
 ): Promise<Booking> {
   return withLock(async () => {
     if (input.date < todayStr()) {
@@ -533,14 +559,23 @@ export function updateBooking(
         startTime: input.startTime,
         endTime: input.endTime,
         purpose: input.purpose,
+        bookerName: input.bookerName?.trim()
+          ? input.bookerName.trim()
+          : existingBooking.bookerName,
+        bookerEmail:
+          input.bookerEmail !== undefined
+            ? input.bookerEmail.trim()
+            : existingBooking.bookerEmail,
       };
 
       // Keep an existing calendar invite in sync: drop the stale one and
       // create a fresh one at the new time. Best-effort, same tradeoff as
       // elsewhere — a failed Graph call shouldn't block saving the edit.
       if (updated.status === "approved" && updated.graphEventId) {
+        // Delete against the identity the event was created under — which is
+        // the pre-edit email, in case an admin just reassigned the booking.
         await deleteCalendarEvent(
-          updated.bookerEmail,
+          existingBooking.bookerEmail,
           updated.graphEventId
         ).catch(() => undefined);
         const roomRows = await client.query<RoomRow>(
@@ -555,7 +590,8 @@ export function updateBooking(
 
       await client.query(
         `UPDATE bookings
-         SET date = $2, start_time = $3, end_time = $4, purpose = $5, graph_event_id = $6
+         SET date = $2, start_time = $3, end_time = $4, purpose = $5,
+             booker_name = $6, booker_email = $7, graph_event_id = $8
          WHERE id = $1`,
         [
           id,
@@ -563,6 +599,8 @@ export function updateBooking(
           updated.startTime,
           updated.endTime,
           updated.purpose,
+          updated.bookerName,
+          updated.bookerEmail,
           updated.graphEventId ?? null,
         ]
       );

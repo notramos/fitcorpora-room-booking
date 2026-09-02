@@ -22,9 +22,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Body tidak valid." }, { status: 400 });
   }
 
-  if (!body.name || !body.location || !body.capacity) {
+  if (!body.name || !body.location) {
     return NextResponse.json(
-      { error: "Nama, lokasi, dan kapasitas wajib diisi." },
+      { error: "Nama dan lokasi wajib diisi." },
+      { status: 400 }
+    );
+  }
+
+  const capacity = Math.floor(Number(body.capacity));
+  if (!Number.isFinite(capacity) || capacity < 1) {
+    return NextResponse.json(
+      { error: "Kapasitas minimal 1 orang." },
       { status: 400 }
     );
   }
@@ -32,7 +40,7 @@ export async function PATCH(
   const input: CreateRoomInput = {
     name: body.name,
     location: body.location,
-    capacity: Number(body.capacity) || 0,
+    capacity,
     requiresApproval: !!body.requiresApproval,
     facilities: body.facilities ?? [],
     images: body.images ?? [],

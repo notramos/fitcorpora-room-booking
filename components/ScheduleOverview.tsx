@@ -281,6 +281,7 @@ export default function ScheduleOverview({
       {editing && (
         <EditBookingModal
           booking={editing}
+          isAdmin={isAdmin}
           onClose={() => setEditing(null)}
           onSaved={loadBookings}
         />

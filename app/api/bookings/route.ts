@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: Partial<CreateBookingInput>;
+  let body: Partial<CreateBookingInput> & { forceApproved?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -54,17 +54,32 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const input: CreateBookingInput = {
+  const isAdmin = !!session.user?.isAdmin;
+
+  // Normal users always book as themselves — the name/email come from the
+  // session, not the request, so they can't be spoofed. Admins may book on
+  // someone else's behalf (walk-in / phone request): the name they type is
+  // what shows on the tablet display.
+  const onBehalf = isAdmin && !!body.bookerName?.trim();
+  const bookerName = onBehalf
+    ? body.bookerName!.trim()
+    : (session.user?.name ?? "Unknown");
+  const bookerEmail = onBehalf
+    ? (body.bookerEmail?.trim() ?? "")
+    : (session.user?.email ?? "");
+
+  const input: CreateBookingInput & { forceApproved?: boolean } = {
     roomId: body.roomId!,
     date: body.date!,
     startTime: body.startTime!,
     endTime: body.endTime!,
     purpose: body.purpose ?? "",
-    // TEMP: derived from session when auth is enabled; falls back to body while auth is disabled.
-    bookerName: body.bookerName ?? "Unknown",
-    bookerEmail: body.bookerEmail ?? "",
+    bookerName,
+    bookerEmail,
     isOvertime: !!body.isOvertime,
     overtimeNote: body.overtimeNote ?? "",
+    // Only an admin can confirm on creation; ignored for everyone else.
+    forceApproved: isAdmin && body.forceApproved === true,
   };
 
   try {

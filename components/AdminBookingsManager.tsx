@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import AdminBookingModal from "./AdminBookingModal";
 import EditBookingModal from "./EditBookingModal";
 import ThemeToggle from "./ThemeToggle";
 import type { Booking, Room } from "@/lib/types";
@@ -36,6 +37,7 @@ export default function AdminBookingsManager({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Booking | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const [q, setQ] = useState("");
   const [roomId, setRoomId] = useState<string>("all");
@@ -156,14 +158,22 @@ export default function AdminBookingsManager({
         <ThemeToggle />
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Kelola Semua Booking
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cari, ubah, hapus, setujui, atau atur ulang pengingat untuk booking
-          apa pun — pengganti mengedit spreadsheet secara manual.
-        </p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Kelola Semua Booking
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Cari, ubah, hapus, setujui, atau atur ulang pengingat untuk booking
+            apa pun — pengganti mengedit spreadsheet secara manual.
+          </p>
+        </div>
+        <button
+          onClick={() => setCreating(true)}
+          className={`${btnPrimary} shrink-0`}
+        >
+          + Tambah Booking
+        </button>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -331,8 +341,17 @@ export default function AdminBookingsManager({
       {editing && (
         <EditBookingModal
           booking={editing}
+          isAdmin
           onClose={() => setEditing(null)}
           onSaved={(updated) => upsert(updated)}
+        />
+      )}
+
+      {creating && (
+        <AdminBookingModal
+          rooms={rooms}
+          onClose={() => setCreating(false)}
+          onCreated={(b) => setBookings((prev) => [b, ...prev])}
         />
       )}
     </div>

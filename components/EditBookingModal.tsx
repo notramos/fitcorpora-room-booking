@@ -14,10 +14,13 @@ const labelClass = "text-sm font-medium leading-none";
 // admin action, not something the booker can toggle by editing).
 export default function EditBookingModal({
   booking,
+  isAdmin = false,
   onClose,
   onSaved,
 }: {
   booking: Booking;
+  // Admins can also reassign who the booking is for (name shown on the tablet).
+  isAdmin?: boolean;
   onClose: () => void;
   onSaved: (updated: Booking) => void;
 }) {
@@ -25,6 +28,8 @@ export default function EditBookingModal({
   const [startTime, setStartTime] = useState(booking.startTime);
   const [endTime, setEndTime] = useState(booking.endTime);
   const [purpose, setPurpose] = useState(booking.purpose);
+  const [bookerName, setBookerName] = useState(booking.bookerName);
+  const [bookerEmail, setBookerEmail] = useState(booking.bookerEmail);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,7 +41,11 @@ export default function EditBookingModal({
       const res = await fetch(`/api/bookings/${booking.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, startTime, endTime, purpose }),
+        body: JSON.stringify(
+          isAdmin
+            ? { date, startTime, endTime, purpose, bookerName, bookerEmail }
+            : { date, startTime, endTime, purpose }
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -71,6 +80,29 @@ export default function EditBookingModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          {isAdmin && (
+            <>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Nama Pemesan</label>
+                <input
+                  type="text"
+                  required
+                  value={bookerName}
+                  onChange={(e) => setBookerName(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass}>Email Pemesan (opsional)</label>
+                <input
+                  type="email"
+                  value={bookerEmail}
+                  onChange={(e) => setBookerEmail(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </>
+          )}
           <div className="space-y-1.5">
             <label className={labelClass}>Tanggal</label>
             <input
