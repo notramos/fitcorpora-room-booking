@@ -450,7 +450,7 @@ export default function SearchBooking({
             <input
               type="text"
               inputMode="numeric"
-              placeholder="cth. 6 orang"
+              placeholder="input number"
               value={capacity}
               onChange={(e) => {
                 setCapacity(e.target.value.replace(/\D/g, ""));
