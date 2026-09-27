@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { todayStr } from "@/lib/timeSlots";
 import type { Booking } from "@/lib/types";
+import AttendeePicker from "./AttendeePicker";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
@@ -30,6 +31,7 @@ export default function EditBookingModal({
   const [purpose, setPurpose] = useState(booking.purpose);
   const [bookerName, setBookerName] = useState(booking.bookerName);
   const [bookerEmail, setBookerEmail] = useState(booking.bookerEmail);
+  const [attendeeEmails, setAttendeeEmails] = useState(booking.attendeeEmails);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,8 +45,22 @@ export default function EditBookingModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isAdmin
-            ? { date, startTime, endTime, purpose, bookerName, bookerEmail }
-            : { date, startTime, endTime, purpose }
+            ? {
+                date,
+                startTime,
+                endTime,
+                purpose,
+                bookerName,
+                bookerEmail,
+                attendeeEmails,
+              }
+            : {
+                date,
+                startTime,
+                endTime,
+                purpose,
+                attendeeEmails,
+              }
         ),
       });
       const data = await res.json();
@@ -147,6 +163,11 @@ export default function EditBookingModal({
               placeholder="Rapat tim, presentasi, dll."
               className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={labelClass}>Peserta Meeting (opsional)</label>
+            <AttendeePicker value={attendeeEmails} onChange={setAttendeeEmails} disabled={submitting} />
           </div>
 
           {error && (

@@ -53,6 +53,7 @@ export async function PATCH(
     purpose?: string;
     bookerName?: string;
     bookerEmail?: string;
+    attendeeEmails?: unknown;
   };
   try {
     body = await request.json();
@@ -68,6 +69,25 @@ export async function PATCH(
   }
 
   const isAdmin = !!session.user?.isAdmin;
+  const attendeeEmails = Array.isArray(body.attendeeEmails)
+    ? Array.from(
+        new Set(
+          body.attendeeEmails
+            .map((email) => String(email).trim().toLowerCase())
+            .filter(Boolean)
+        )
+      ).slice(0, 20)
+    : undefined;
+  if (
+    attendeeEmails?.some(
+      (email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    )
+  ) {
+    return NextResponse.json(
+      { error: "Ada email peserta yang tidak valid." },
+      { status: 400 }
+    );
+  }
 
   try {
     const updated = await updateBooking(id, {
@@ -78,6 +98,7 @@ export async function PATCH(
       // Only an admin may reassign who a booking is for.
       bookerName: isAdmin ? body.bookerName : undefined,
       bookerEmail: isAdmin ? body.bookerEmail : undefined,
+      attendeeEmails,
     });
     return NextResponse.json(updated);
   } catch (err) {

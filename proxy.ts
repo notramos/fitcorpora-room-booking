@@ -18,9 +18,10 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // `display` and `api/display` are excluded so the public tablet/kiosk view
-  // (and its data polling) works without login.
+  // `teams` must stay public for the initial iframe load. That page obtains
+  // a Teams SSO token and exchanges it for the normal NextAuth session cookie.
+  // `display` and `api/display` remain public for the tablet/kiosk view.
   matcher: [
-    "/((?!api/auth|api/display|login|display|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth|api/display|login|display|teams|_next/static|_next/image|favicon.ico).*)",
   ],
 };

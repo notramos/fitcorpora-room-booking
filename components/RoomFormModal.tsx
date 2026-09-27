@@ -1,11 +1,30 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { CreateRoomInput, Room } from "@/lib/types";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
 const labelClass = "text-sm font-medium leading-none";
+const MAX_IMAGES = 5;
+
+async function compressImage(file: File): Promise<File> {
+  if (file.size <= 1_500_000) return file;
+
+  const bitmap = await createImageBitmap(file);
+  const maxWidth = 1600;
+  const scale = Math.min(1, maxWidth / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/webp", 0.82)
+  );
+  return blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" }) : file;
+}
 
 export default function RoomFormModal({
   room,
@@ -31,14 +50,33 @@ export default function RoomFormModal({
   const [images, setImages] = useState(room?.images.join(", ") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const uploadedUrls = useRef<string[]>([]);
+
+  async function cleanupUploadedFiles() {
+    const files = [...uploadedUrls.current];
+    uploadedUrls.current = [];
+    await Promise.all(
+      files.map((url) =>
+        fetch(`/api/uploads/rooms/${encodeURIComponent(url.split("/").pop() ?? "")}`, {
+          method: "DELETE",
+        }).catch(() => undefined)
+      )
+    );
+  }
+
+  function closeModal() {
+    void cleanupUploadedFiles().finally(onClose);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeModal();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  });
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -81,6 +119,7 @@ export default function RoomFormModal({
         setError(data.error ?? "Gagal menyimpan ruangan.");
         return;
       }
+      uploadedUrls.current = [];
       onSaved(data as Room);
       onClose();
     } catch {
@@ -90,10 +129,52 @@ export default function RoomFormModal({
     }
   }
 
+  async function handleImageUpload(files: FileList | null) {
+    if (!files?.length) return;
+    const remaining = MAX_IMAGES - imageUrls.length;
+    if (remaining <= 0) {
+      setError(`Maksimal ${MAX_IMAGES} gambar per ruangan.`);
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files).slice(0, remaining)) {
+        const compressed = await compressImage(file);
+        const formData = new FormData();
+        formData.append("file", compressed);
+        const res = await fetch("/api/uploads/rooms", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error ?? "Gagal mengupload gambar.");
+          break;
+        }
+        uploaded.push(data.url as string);
+        uploadedUrls.current.push(data.url as string);
+      }
+      if (files.length > remaining) {
+        setError(`Maksimal ${MAX_IMAGES} gambar per ruangan. Sebagian file tidak diupload.`);
+      }
+      if (uploaded.length > 0) {
+        setImages((current) => [...current.split(",").map((s) => s.trim()).filter(Boolean), ...uploaded].join(", "));
+      }
+    } catch {
+      setError("Terjadi kesalahan saat mengupload gambar.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const imageUrls = images.split(",").map((s) => s.trim()).filter(Boolean);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={closeModal}
     >
       <div
         className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-xl border bg-card text-card-foreground shadow-lg"
@@ -167,16 +248,72 @@ export default function RoomFormModal({
 
           <div className="space-y-1.5">
             <label className={labelClass}>
-              Link Foto{" "}
+              Foto Ruangan{" "}
               <span className="font-normal text-muted-foreground">
-                (pisahkan dengan koma)
+                (maks. 5 MB per file)
               </span>
             </label>
+            <label
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                void handleImageUpload(e.dataTransfer.files);
+              }}
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-4 py-6 text-center transition-colors ${dragging ? "border-primary bg-muted" : "bg-background hover:bg-muted/50"}`}
+            >
+              <span className="text-sm font-medium">
+                {uploading ? "Mengoptimalkan dan mengupload…" : "Pilih atau tarik foto ke sini"}
+              </span>
+              <span className="mt-1 text-xs text-muted-foreground">
+                JPG, PNG, WebP · Maksimal {MAX_IMAGES} gambar · 5 MB per file
+              </span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={(e) => {
+                  void handleImageUpload(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+                disabled={uploading}
+                className="sr-only"
+              />
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {imageUrls.length}/{MAX_IMAGES} gambar dipilih
+            </p>
+            {imageUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 pt-1 sm:grid-cols-4">
+                {imageUrls.map((url) => (
+                  <div key={url} className="group relative aspect-video overflow-hidden rounded-md border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- uploaded room images are served from the app. */}
+                    <img src={url} alt="Preview ruangan" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      aria-label="Hapus gambar"
+                      onClick={() => {
+                        setImages(imageUrls.filter((item) => item !== url).join(", "));
+                        if (uploadedUrls.current.includes(url)) {
+                          uploadedUrls.current = uploadedUrls.current.filter((item) => item !== url);
+                          void fetch(`/api/uploads/rooms/${encodeURIComponent(url.split("/").pop() ?? "")}`, { method: "DELETE" });
+                        }
+                      }}
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <input
-              type="text"
+              type="hidden"
               value={images}
-              onChange={(e) => setImages(e.target.value)}
-              placeholder="https://.../foto1.jpg, https://.../foto2.jpg"
               className={inputClass}
             />
           </div>
@@ -201,7 +338,7 @@ export default function RoomFormModal({
         <div className="flex justify-end gap-2 border-t p-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeModal}
             className="inline-flex h-10 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Batal

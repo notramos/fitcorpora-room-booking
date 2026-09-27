@@ -5,13 +5,13 @@ export interface TeamsIdentity {
   name: string;
   preferredUsername: string;
   tid: string;
+  roles: string[];
 }
 
 const TENANT_ID = process.env.AZURE_AD_TENANT_ID!;
-// Not a secret (it's the public Application ID URI, e.g. "api://domain/clientId"),
-// so it's shared with the client bundle via the NEXT_PUBLIC_ prefix rather than
-// duplicating the same value under two env var names.
-const APP_ID_URI = process.env.NEXT_PUBLIC_TEAMS_APP_ID_URI!;
+// Teams requests the token for the Application ID URI, but Entra v2 access
+// tokens put the API's client ID in `aud`. Validate against that claim value.
+const API_CLIENT_ID = process.env.AZURE_AD_CLIENT_ID!;
 
 // Cached across requests/module lifetime, as recommended by jose — avoids
 // re-fetching the JWKS on every verification call.
@@ -26,7 +26,7 @@ export async function verifyTeamsToken(
 ): Promise<TeamsIdentity> {
   const { payload } = await jwtVerify(rawToken, jwks, {
     issuer: `https://login.microsoftonline.com/${TENANT_ID}/v2.0`,
-    audience: APP_ID_URI,
+    audience: API_CLIENT_ID,
   });
 
   // Defense-in-depth on top of the issuer check above.
@@ -38,10 +38,13 @@ export async function verifyTeamsToken(
   const name = payload.name;
   const preferredUsername =
     payload.preferred_username ?? payload.upn ?? payload.email;
+  const roles = Array.isArray(payload.roles)
+    ? payload.roles.filter((role): role is string => typeof role === "string")
+    : [];
 
   if (typeof oid !== "string" || typeof name !== "string" || typeof preferredUsername !== "string") {
     throw new Error("Teams SSO token is missing required claims.");
   }
 
-  return { oid, name, preferredUsername, tid: payload.tid };
+  return { oid, name, preferredUsername, tid: payload.tid, roles };
 }

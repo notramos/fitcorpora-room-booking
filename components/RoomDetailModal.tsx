@@ -70,6 +70,10 @@ export default function RoomDetailModal({
                   src={images[activeImage]}
                   alt={`${room.name} — foto ${activeImage + 1}`}
                   className="h-full w-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = "/room-placeholder.svg";
+                  }}
                 />
               </div>
               {images.length > 1 && (
@@ -89,6 +93,10 @@ export default function RoomDetailModal({
                         src={src}
                         alt=""
                         className="h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = "/room-placeholder.svg";
+                        }}
                       />
                     </button>
                   ))}

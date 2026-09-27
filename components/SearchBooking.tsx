@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import BookingModal from "./BookingModal";
 import RoomDetailModal from "./RoomDetailModal";
 import ThemeToggle from "./ThemeToggle";
+import MobileBottomNav from "./MobileBottomNav";
+import TimeRangePicker from "./TimeRangePicker";
 import {
   BUSINESS_END,
   BUSINESS_HOURS_LABEL,
@@ -23,6 +25,12 @@ function maxDateStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + MAX_ADVANCE_DAYS);
   return todayStr(d);
+}
+
+function dateFromToday(offset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return todayStr(date);
 }
 
 const TIME_STEP_MINUTES = 30;
@@ -90,7 +98,7 @@ function ResultGroup({
         </h3>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
         {items.map((result) => (
           <RoomResultCard
             key={result.room.id}
@@ -121,45 +129,85 @@ function RoomResultCard({
 }) {
   return (
     <div
-      className={`relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-card p-5 pl-6 shadow-sm sm:flex-row sm:items-center sm:justify-between ${
+      className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md ${
         isBest ? "ring-1 ring-primary/40" : ""
       } ${available ? "" : "opacity-75"}`}
     >
-      <span
-        className={`absolute inset-y-0 left-0 w-1.5 ${
-          available ? "bg-emerald-500" : "bg-red-400"
-        }`}
-        aria-hidden="true"
-      />
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-muted">
+        {room.images[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element -- room image URLs are managed by admins.
+          <img
+            src={room.images[0]}
+            alt={`Foto ${room.name}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = "/room-placeholder.svg";
+            }}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-5 w-5 sm:h-7 sm:w-7"
+              aria-hidden="true"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="m21 15-5-5L5 21" />
+            </svg>
+          </div>
+        )}
+        <span
+          className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold shadow-sm ${
+            available
+              ? "bg-emerald-600 text-white"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-white" />
+          {available ? "Tersedia" : "Terisi"}
+        </span>
+      </div>
 
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 flex-1 p-3 pb-2 sm:p-4 sm:pb-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1 sm:gap-2">
           <button
             onClick={() => onDetail(room)}
-            className="font-semibold tracking-tight hover:underline"
+            className="line-clamp-2 min-w-0 max-w-full text-left text-sm font-semibold leading-snug tracking-tight hover:underline sm:text-base"
           >
             {room.name}
           </button>
           {isBest && (
-            <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+            <span className="hidden items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground sm:inline-flex">
               Rekomendasi
             </span>
           )}
           {isOvertime && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            <span className="hidden items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300 sm:inline-flex">
               Overtime
             </span>
           )}
           {!isOvertime && room.requiresApproval && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            <span className="hidden items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300 sm:inline-flex">
               Perlu Persetujuan
             </span>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
           {room.location} · Kapasitas {room.capacity} orang
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        {(isOvertime || room.requiresApproval) && available && (
+          <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300 sm:hidden">
+            {isOvertime ? "Perlu approval overtime" : "Perlu persetujuan"}
+          </p>
+        )}
+        <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
           {available
             ? isOvertime
               ? "Di luar jam operasional — perlu diajukan sebagai surat overtime"
@@ -170,7 +218,7 @@ function RoomResultCard({
         </p>
         <button
           onClick={() => onDetail(room)}
-          className="mt-1.5 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="mt-1 hidden text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:block"
         >
           Lihat detail & fasilitas
         </button>
@@ -179,13 +227,18 @@ function RoomResultCard({
       <button
         onClick={() => onBook(room)}
         disabled={!available}
-        className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+        aria-label={
+          available
+            ? isOvertime
+              ? `Ajukan overtime untuk ${room.name}`
+              : room.requiresApproval
+                ? `Ajukan booking ${room.name}`
+                : `Booking ${room.name}`
+            : `${room.name} tidak tersedia`
+        }
+        className="mx-3 mb-3 inline-flex h-11 min-w-0 shrink-0 items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 sm:mx-4 sm:mb-4 sm:h-10 sm:rounded-md sm:px-4"
       >
-        {isOvertime
-          ? "Ajukan Overtime"
-          : room.requiresApproval
-            ? "Ajukan Booking"
-            : "Booking"}
+        <span className="truncate">{available ? "Pilih Ruangan" : "Tidak Tersedia"}</span>
       </button>
     </div>
   );
@@ -201,7 +254,8 @@ export default function SearchBooking({
 
   const [rooms] = useState(initialRooms);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const [date, setDate] = useState(todayStr);
   const [startTime, setStartTime] = useState(() => nextRoundedTime(new Date()));
@@ -218,24 +272,63 @@ export default function SearchBooking({
   const [detailRoom, setDetailRoom] = useState<Room | null>(null);
   const [lastBooked, setLastBooked] = useState<Booking | null>(null);
 
+  function changeDate(nextDate: string) {
+    setLoading(true);
+    setDate(nextDate);
+    setSearched(false);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetch(`/api/bookings?date=${date}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: Booking[]) => {
-        if (!cancelled) setBookings(data);
-      })
-      .catch(() => {
-        if (!cancelled) setBookings([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const loadBookings = () => {
+      fetch(`/api/bookings?date=${date}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: Booking[]) => {
+          if (!cancelled) setBookings(data);
+        })
+        .catch(() => {
+          if (!cancelled) setBookings([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    loadBookings();
+    const refreshInterval = window.setInterval(loadBookings, 30_000);
     return () => {
       cancelled = true;
+      window.clearInterval(refreshInterval);
     };
   }, [date]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const selectedDateIsToday = date === todayStr();
+  const currentMinutes = nowMinutesInAppTimezone(new Date(clockNow));
+
+  function getUnavailableReason(rangeStart: string, rangeEnd: string) {
+    if (loading) return "Sedang memuat jadwal ruangan";
+    if (selectedDateIsToday && toMinutes(rangeStart) < currentMinutes) {
+      return "Waktu ini sudah terlewat";
+    }
+
+    const eligibleRooms =
+      minCap > 0 ? rooms.filter((room) => room.capacity >= minCap) : rooms;
+    const hasAvailableRoom = eligibleRooms.some(
+      (room) =>
+        !bookings.some(
+          (booking) =>
+            booking.roomId === room.id &&
+            overlaps(rangeStart, rangeEnd, booking.startTime, booking.endTime)
+        )
+    );
+
+    return hasAvailableRoom ? null : "Tidak ada ruangan yang tersedia pada jam ini";
+  }
 
   const invalidRange = startTime >= endTime;
   const isOvertime =
@@ -281,8 +374,8 @@ export default function SearchBooking({
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-6 py-3">
+      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <svg
@@ -358,48 +451,133 @@ export default function SearchBooking({
         </div>
       </header>
 
-      {/* Small-screen nav row — Jadwal collapses out of the header above sm */}
-      <div className="flex items-center gap-1 border-b px-6 py-2 sm:hidden">
-        <Link
-          href="/jadwal"
-          className="inline-flex h-8 flex-1 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          Jadwal
-        </Link>
-        {isAdmin && (
-          <>
-            <Link
-              href="/approval"
-              className="inline-flex h-8 flex-1 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Persetujuan
-            </Link>
-            <Link
-              href="/admin/rooms"
-              className="inline-flex h-8 flex-1 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Kelola Ruangan
-            </Link>
-          </>
-        )}
-      </div>
-
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Cari &amp; Booking Ruangan
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Masukkan tanggal, jam, dan kapasitas yang dibutuhkan untuk melihat
-            rekomendasi ruangan.
-          </p>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-28 sm:px-6 sm:py-10 sm:pb-10">
+        <div className="mb-5 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:rounded-2xl sm:border sm:bg-card sm:p-8 sm:shadow-sm">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Office workspace
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
+              Cari ruang meeting
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Pilih waktu dan kapasitas yang dibutuhkan. Kami akan menampilkan
+              ruangan yang paling sesuai beserta status ketersediaannya.
+            </p>
+          </div>
+          <div className="hidden grid-cols-2 gap-2 text-xs sm:grid sm:min-w-[13rem]">
+            <div className="rounded-lg border bg-muted/40 p-3">
+              <p className="text-muted-foreground">Total ruangan</p>
+              <p className="mt-1 text-lg font-semibold">{rooms.length}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/40 p-3">
+              <p className="text-muted-foreground">Batas booking</p>
+              <p className="mt-1 text-lg font-semibold">30 hari</p>
+            </div>
+          </div>
         </div>
 
         <form
           onSubmit={handleSearch}
-          className="grid grid-cols-1 gap-4 rounded-xl border bg-card p-6 shadow-sm sm:grid-cols-4"
+          className="grid grid-cols-1 gap-3 rounded-xl border bg-card p-3 shadow-sm sm:gap-4 sm:rounded-2xl sm:grid-cols-2 sm:p-6 lg:grid-cols-5"
         >
-          <div className="space-y-1.5">
+          <div className="sm:col-span-2 lg:col-span-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold sm:text-base">Cari ketersediaan</h3>
+                <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                  Slot yang sudah terlewat atau bentrok akan otomatis dinonaktifkan.
+                </p>
+              </div>
+              <span className="hidden rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground sm:inline-flex">
+                WIB · {BUSINESS_HOURS_LABEL}
+              </span>
+            </div>
+          </div>
+
+          <section className="space-y-2 rounded-xl border bg-muted/30 p-2.5 sm:hidden">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                1
+              </span>
+              <p className="text-xs font-semibold">Pilih tanggal</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  changeDate(dateFromToday(0));
+                }}
+                className={`h-8 rounded-lg border text-[11px] font-semibold transition-colors ${
+                  date === dateFromToday(0) ? "bg-primary text-primary-foreground" : "bg-background"
+                }`}
+              >
+                Hari ini
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  changeDate(dateFromToday(1));
+                }}
+                className={`h-8 rounded-lg border text-[11px] font-semibold transition-colors ${
+                  date === dateFromToday(1) ? "bg-primary text-primary-foreground" : "bg-background"
+                }`}
+              >
+                Besok
+              </button>
+            </div>
+
+            <input
+              type="date"
+              aria-label="Pilih tanggal booking"
+              required
+              min={todayStr()}
+              max={maxDateStr()}
+              value={date}
+              onChange={(e) => {
+                changeDate(e.target.value);
+              }}
+              className="h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </section>
+
+          <TimeRangePicker
+            startTime={startTime}
+            endTime={endTime}
+            getUnavailableReason={getUnavailableReason}
+            onChange={(nextStart, nextEnd) => {
+              setStartTime(nextStart);
+              setEndTime(nextEnd);
+              setSearched(false);
+            }}
+          />
+
+          <div className="flex items-center gap-3 rounded-xl border px-2.5 py-2 sm:hidden">
+            <div className="min-w-0 flex-1">
+              <label className="block text-xs font-medium" htmlFor="capacity-mobile">
+                Kapasitas
+              </label>
+              <p className="truncate text-[10px] text-muted-foreground">
+                Opsional · minimum peserta
+              </p>
+            </div>
+            <input
+              id="capacity-mobile"
+              type="text"
+              inputMode="numeric"
+              aria-label="Kapasitas minimal"
+              placeholder="6"
+              value={capacity}
+              onChange={(e) => {
+                setCapacity(e.target.value.replace(/\D/g, ""));
+                setSearched(false);
+              }}
+              className="h-9 w-20 shrink-0 rounded-lg border bg-background px-2 text-center text-xs font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+
+          <div className="hidden space-y-1.5 sm:block">
             <label className={labelClass}>Tanggal</label>
             <input
               type="date"
@@ -408,13 +586,12 @@ export default function SearchBooking({
               max={maxDateStr()}
               value={date}
               onChange={(e) => {
-                setDate(e.target.value);
-                setSearched(false);
+                changeDate(e.target.value);
               }}
               className={inputClass}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="hidden space-y-1.5 sm:block">
             <label className={labelClass}>Jam Mulai</label>
             <input
               type="time"
@@ -427,7 +604,7 @@ export default function SearchBooking({
               className={inputClass}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="hidden space-y-1.5 sm:block">
             <label className={labelClass}>Jam Selesai</label>
             <input
               type="time"
@@ -440,7 +617,7 @@ export default function SearchBooking({
               className={inputClass}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="hidden space-y-1.5 sm:block">
             <label className={labelClass}>
               Kapasitas{" "}
               <span className="font-normal text-muted-foreground">
@@ -461,23 +638,21 @@ export default function SearchBooking({
           </div>
 
           {invalidRange && (
-            <p className="sm:col-span-4 text-sm text-destructive">
+            <p className="text-xs text-destructive sm:col-span-2 sm:text-sm lg:col-span-5">
               Jam mulai harus lebih awal dari jam selesai.
             </p>
           )}
           {isOvertime && (
-            <p className="sm:col-span-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              Jam operasional gedung {BUSINESS_HOURS_LABEL} (lampu mati pukul
-              18.00). Booking di luar jam ini akan diajukan sebagai surat
-              overtime ke office management.
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs leading-5 text-amber-900 sm:col-span-2 sm:px-3 sm:text-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200 lg:col-span-5">
+              Di luar jam operasional {BUSINESS_HOURS_LABEL}; booking akan diajukan sebagai overtime.
             </p>
           )}
 
-          <div className="sm:col-span-4">
+          <div className="sm:col-span-2 lg:col-span-5">
             <button
               type="submit"
               disabled={invalidRange || loading}
-              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 sm:h-11 sm:w-auto sm:min-w-40 sm:rounded-md"
             >
               {loading ? "Memuat…" : "Cari Ruangan"}
             </button>
@@ -562,6 +737,8 @@ export default function SearchBooking({
       {detailRoom && (
         <RoomDetailModal room={detailRoom} onClose={() => setDetailRoom(null)} />
       )}
+
+      <MobileBottomNav />
     </div>
   );
 }

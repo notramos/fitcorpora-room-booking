@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-labelledby="title">
+  <title>Foto ruangan belum tersedia</title>
+  <rect width="800" height="450" fill="#f4f4f5"/>
+  <path d="M220 340h360M270 340V190l130-65v215M530 340V220l-130-95" fill="none" stroke="#a1a1aa" stroke-width="14" stroke-linejoin="round"/>
+  <circle cx="340" cy="220" r="12" fill="#a1a1aa"/>
+  <text x="400" y="405" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#71717a">Foto ruangan belum tersedia</text>
+</svg>

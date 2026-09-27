@@ -27,12 +27,14 @@ Browser (login Microsoft)
    AZURE_AD_TENANT_ID=...
    NEXTAUTH_SECRET=...
    NEXTAUTH_URL=http://localhost:3000
-   ADMIN_EMAILS=you@fitcorpora.com
    DATABASE_URL=postgres://booking:booking@localhost:5432/booking
    DATABASE_SSL=
    ```
-   `ADMIN_EMAILS` is a comma-separated allowlist — those accounts get
-   `/admin/*`, room management, and booking approval.
+   Akses admin memakai App Role Entra bernilai `Admin`, bukan daftar email.
+   Buat role tersebut di App Registration, lalu assign grup Office Management
+   dan IT Support ke role `Admin` pada Enterprise Application. Kode membaca
+   claim `roles` dan menggunakannya untuk mengizinkan approval serta kelola
+   ruangan dan booking.
    Generate `NEXTAUTH_SECRET` (Windows PowerShell, tanpa openssl):
    ```powershell
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
@@ -152,18 +154,20 @@ lengkap khusus EC2 (security group, install Docker, DNS, swap) ada di
 
 ## Integrasi Microsoft Teams (silent SSO)
 
-Aplikasi bisa di-embed sebagai tab Teams dengan login otomatis (tanpa klik apa pun) memakai identitas Teams yang sedang aktif. Ini murni tambahan — tidak mengubah `/login`, `middleware.ts`, atau `/display/[id]`.
+Aplikasi bisa di-embed sebagai personal tab Teams dengan login otomatis (tanpa klik apa pun) memakai identitas Teams yang sedang aktif. `/teams` dikecualikan dari `proxy.ts` agar bootstrap SSO dapat berjalan, sedangkan route aplikasi lain tetap dilindungi session.
 
-**Cara kerja:** tab Teams memuat `/teams`, yang lewat `@microsoft/teams-js` meminta token Azure AD secara diam-diam (`authentication.getAuthToken()`), lalu token itu diverifikasi di server (`lib/teamsAuth.ts`, pakai `jose` terhadap JWKS Azure AD) dan diubah jadi cookie session yang **identik** dengan cookie login browser biasa (pakai `encode()` dari `next-auth/jwt`) — jadi begitu sudah login lewat Teams, seluruh app (dan nanti middleware auth kalau diaktifkan lagi) mengenalinya seperti sesi NextAuth normal.
+**Cara kerja:** tab Teams memuat `/teams`, yang lewat `@microsoft/teams-js` meminta token Entra secara diam-diam (`authentication.getAuthToken()`), lalu token itu diverifikasi di server (`lib/teamsAuth.ts`, pakai `jose` terhadap JWKS Entra) dan diubah menjadi cookie session yang kompatibel dengan NextAuth (pakai `encode()` dari `next-auth/jwt`). Setelah itu tab berpindah ke `/` di iframe yang sama. Claim `roles` pada token Teams juga diperiksa untuk menentukan akses admin.
 
 ### Checklist Azure Portal (manual, App Registration yang **sama** dengan yang dipakai `/login`)
 
-1. **Expose an API** → set Application ID URI: `api://<domain-anda>/<AZURE_AD_CLIENT_ID>`. Tambah scope `access_as_user` (State: Enabled).
-2. **Authorized client applications** → tambahkan dua client ID Teams bawaan Microsoft untuk scope `access_as_user`:
+1. **Manifest** pada App Registration → pastikan `requestedAccessTokenVersion` bernilai `2`.
+2. **Expose an API** → set Application ID URI: `api://<domain-anda>/<AZURE_AD_CLIENT_ID>`. Domain harus lowercase dan sama dengan domain tab. Tambah scope `access_as_user` (State: Enabled).
+3. **Authorized client applications** → tambahkan dua client ID Teams bawaan Microsoft untuk scope `access_as_user`:
    - `1fec8e78-bce4-4aaf-ab1b-5451cc387264` (Teams desktop & mobile)
    - `5e3ce6c0-2b1f-4285-8d4b-75ee78787346` (Teams web)
-3. **Authentication** → tambah platform **Single-page application**, redirect URI: `https://<domain-anda>/auth-end.html` (sudah tersedia di `public/auth-end.html`).
-4. **API permissions** → **Grant admin consent** untuk scope `access_as_user` tenant-wide — wajib supaya proses benar-benar diam-diam (tanpa prompt user).
+4. **Authentication** → pertahankan platform **Web** dan redirect URI browser biasa: `https://<domain-anda>/api/auth/callback/azure-ad`. Flow TeamsJS pada implementasi ini tidak membutuhkan `auth-end.html`.
+5. Berikan **admin consent** tenant-wide untuk scope `access_as_user` agar pengguna tidak menerima prompt consent saat tab dibuka.
+6. Permission Graph seperti `Calendars.ReadWrite` dan `User.Read.All` adalah kebutuhan fitur kalender/directory aplikasi, bukan syarat dasar Teams SSO. Permission Application tetap memerlukan admin consent.
 
 ### Env var tambahan
 
@@ -179,12 +183,10 @@ Isi `teams-manifest/manifest.json`: ganti `id` (GUID baru khusus app Teams), `pa
 ### Yang perlu diuji langsung di Teams (tidak bisa disimulasikan lokal)
 
 - Flow `getAuthToken()` yang sesungguhnya di dalam client Teams asli.
-- Tab benar-benar termuat di iframe Teams (CSP `frame-ancestors` di `/teams` mengizinkan domain Teams).
+- Tab benar-benar termuat di iframe Teams. CSP aplikasi mengizinkan `teams.microsoft.com`, `*.teams.microsoft.com`, dan host baru `*.cloud.microsoft` sebagai frame ancestor.
 - Admin consent benar-benar ter-grant (kalau belum, `getAuthToken()` akan gagal dengan error spesifik saat dites langsung).
 
-### Catatan untuk nanti
-
-Kalau `middleware.ts` diaktifkan kembali (saat ini sengaja di-bypass untuk testing), tambahkan `teams` ke daftar pengecualian matcher-nya — supaya load pertama tab Teams tidak ke-redirect ke `/login` sebelum sempat mendapat cookie dari `/api/auth/teams`.
+`proxy.ts` sudah mengecualikan `/teams` dan `/api/auth/*`; jangan menghapus pengecualian tersebut karena tab akan masuk ke redirect loop sebelum token Teams sempat ditukar menjadi session.
 
 ## Struktur file
 

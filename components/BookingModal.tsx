@@ -13,6 +13,7 @@ import {
   toMinutes,
 } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
+import AttendeePicker from "./AttendeePicker";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground read-only:bg-muted read-only:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
@@ -52,6 +53,7 @@ export default function BookingModal({
   const [startTime, setStartTime] = useState(initialStartTime ?? "09:00");
   const [endTime, setEndTime] = useState(initialEndTime ?? "10:00");
   const [purpose, setPurpose] = useState("");
+  const [attendeeEmails, setAttendeeEmails] = useState<string[]>([]);
   const [overtimeNote, setOvertimeNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -190,6 +192,7 @@ export default function BookingModal({
           purpose,
           bookerName: session?.user?.name ?? bookerName,
           bookerEmail: session?.user?.email ?? bookerEmail,
+          attendeeEmails,
           isOvertime,
           overtimeNote,
         }),
@@ -215,11 +218,11 @@ export default function BookingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-xl border bg-card text-card-foreground shadow-lg"
+        className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl border bg-card text-card-foreground shadow-lg sm:max-h-[88vh] sm:rounded-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col space-y-1.5 border-b p-6">
@@ -233,7 +236,7 @@ export default function BookingModal({
 
         <form
           onSubmit={handleSubmit}
-          className="flex-1 space-y-4 overflow-y-auto p-6"
+          className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6"
         >
           {room.requiresApproval && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -242,6 +245,14 @@ export default function BookingModal({
               management sebelum terkonfirmasi.
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <label className={labelClass}>
+              Peserta Meeting{" "}
+              <span className="font-normal text-muted-foreground">(opsional)</span>
+            </label>
+            <AttendeePicker value={attendeeEmails} onChange={setAttendeeEmails} disabled={submitting} />
+          </div>
 
           {isOvertime && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -333,7 +344,7 @@ export default function BookingModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-7">
                   {slots.map((slot) => {
                     const isBooked = !!slot.booking;
                     const isPastSlot =
@@ -500,11 +511,11 @@ export default function BookingModal({
           )}
         </form>
 
-        <div className="flex justify-end gap-2 border-t p-4">
+        <div className="sticky bottom-0 flex gap-2 border-t bg-card p-4 sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex h-11 flex-1 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-10 sm:flex-none"
           >
             Batal
           </button>
@@ -512,7 +523,7 @@ export default function BookingModal({
             type="submit"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex h-11 flex-[1.5] items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10 sm:flex-none"
           >
             {submitting
               ? "Menyimpan…"

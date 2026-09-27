@@ -6,6 +6,7 @@ import AdminBookingModal from "./AdminBookingModal";
 import EditBookingModal from "./EditBookingModal";
 import Pagination from "./Pagination";
 import ThemeToggle from "./ThemeToggle";
+import MobileBottomNav from "./MobileBottomNav";
 import type { Booking, Room } from "@/lib/types";
 
 const PAGE_SIZE = 10;
@@ -20,7 +21,7 @@ function formatDateLong(d: string): string {
 }
 
 const btnBase =
-  "inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium shadow-sm transition-colors disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex h-11 items-center justify-center rounded-xl px-3 text-sm font-medium shadow-sm transition-colors disabled:pointer-events-none disabled:opacity-50 sm:h-9 sm:rounded-md";
 const btnOutline = `${btnBase} border bg-background hover:bg-accent hover:text-accent-foreground`;
 const btnPrimary = `${btnBase} bg-primary px-4 text-primary-foreground hover:bg-primary/90`;
 const btnDanger = `${btnBase} border border-red-200 bg-background px-4 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950`;
@@ -41,6 +42,7 @@ export default function AdminBookingsManager({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Booking | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [q, setQ] = useState("");
   const [roomId, setRoomId] = useState<string>("all");
@@ -150,7 +152,7 @@ export default function AdminBookingsManager({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 pb-28 sm:px-6 sm:py-10 sm:pb-10">
       <div className="mb-6 flex items-center justify-between">
         <Link href="/" className={`${btnOutline} gap-1.5`}>
           <svg
@@ -166,41 +168,73 @@ export default function AdminBookingsManager({
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Cari &amp; Booking Ruangan
+          <span className="hidden min-[390px]:inline">Cari &amp; Booking Ruangan</span>
+          <span className="min-[390px]:hidden">Beranda</span>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/rooms"
+            className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-3 text-xs font-medium shadow-sm hover:bg-accent sm:text-sm"
+          >
+            Ruangan
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Administration
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Kelola Semua Booking
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Cari, ubah, hapus, setujui, atau atur ulang pengingat untuk booking
             apa pun — pengganti mengedit spreadsheet secara manual.
           </p>
+          </div>
         </div>
         <button
           onClick={() => setCreating(true)}
-          className={`${btnPrimary} shrink-0`}
+          className={`${btnPrimary} h-11 shrink-0 sm:h-9`}
         >
           + Tambah Booking
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-5 rounded-2xl border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3 sm:mb-3">
+        <div>
+          <h2 className="text-sm font-semibold">Filter booking</h2>
+          <p className="text-xs text-muted-foreground">Persempit daftar berdasarkan pemesan, ruangan, status, atau tanggal.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {filtersActive && <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Filter aktif</span>}
+          <button
+            type="button"
+            onClick={() => setShowFilters((current) => !current)}
+            className="inline-flex h-10 items-center justify-center rounded-lg border bg-background px-3 text-xs font-semibold sm:hidden"
+            aria-expanded={showFilters}
+          >
+            {showFilters ? "Tutup" : "Buka filter"}
+          </button>
+        </div>
+      </div>
+      <div className={`${showFilters ? "grid" : "hidden"} mt-4 grid-cols-1 gap-3 sm:mt-0 sm:flex sm:flex-wrap sm:items-center sm:gap-2`}>
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Cari nama, email, keperluan, ruangan…"
-          className={`${fieldClass} min-w-[14rem] flex-1`}
+          className={`${fieldClass} w-full min-w-0 flex-1 sm:min-w-[14rem]`}
         />
         <select
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
-          className={fieldClass}
+          className={`${fieldClass} w-full sm:w-auto`}
         >
           <option value="all">Semua ruangan</option>
           {rooms.map((r) => (
@@ -212,7 +246,7 @@ export default function AdminBookingsManager({
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as StatusFilter)}
-          className={fieldClass}
+          className={`${fieldClass} w-full sm:w-auto`}
         >
           <option value="all">Semua status</option>
           <option value="approved">Disetujui</option>
@@ -222,7 +256,7 @@ export default function AdminBookingsManager({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className={fieldClass}
+          className={`${fieldClass} w-full sm:w-auto`}
         />
         {filtersActive && (
           <button
@@ -238,6 +272,7 @@ export default function AdminBookingsManager({
           </button>
         )}
       </div>
+      </div>
 
       <p className="mb-4 text-sm text-muted-foreground">
         {filtered.length} dari {bookings.length} booking
@@ -250,9 +285,10 @@ export default function AdminBookingsManager({
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Tidak ada booking yang cocok dengan filter.
-        </p>
+        <div className="rounded-2xl border border-dashed bg-card px-5 py-12 text-center">
+          <p className="font-medium">Tidak ada booking ditemukan</p>
+          <p className="mt-1 text-sm text-muted-foreground">Ubah atau reset filter untuk melihat data lain.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {pageItems.map((b) => {
@@ -260,7 +296,7 @@ export default function AdminBookingsManager({
             return (
               <div
                 key={b.id}
-                className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between"
+                className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:p-5"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -287,13 +323,14 @@ export default function AdminBookingsManager({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateLong(b.date)} · {b.startTime}–{b.endTime}
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span>{formatDateLong(b.date)}</span>
+                    <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs font-semibold tabular-nums text-foreground">{b.startTime}–{b.endTime}</span>
+                  </div>
                   <p className="mt-1 text-sm">
                     <span className="font-medium">{b.bookerName}</span>
                     {b.bookerEmail ? (
-                      <span className="text-muted-foreground">
+                      <span className="block truncate text-xs text-muted-foreground sm:inline sm:text-sm">
                         {" "}
                         · {b.bookerEmail}
                       </span>
@@ -311,7 +348,7 @@ export default function AdminBookingsManager({
                   )}
                 </div>
 
-                <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                <div className="grid shrink-0 grid-cols-2 gap-2 border-t pt-3 sm:flex sm:flex-wrap sm:justify-end sm:border-t-0 sm:pt-0">
                   <button
                     onClick={() => setEditing(b)}
                     disabled={busyId === b.id}
@@ -369,6 +406,7 @@ export default function AdminBookingsManager({
           onCreated={(b) => setBookings((prev) => [b, ...prev])}
         />
       )}
+      <MobileBottomNav />
     </div>
   );
 }

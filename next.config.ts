@@ -9,14 +9,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Only the Teams tab entry route is allowed to be framed — the rest
-        // of the app stays non-frameable.
-        source: "/teams",
+        // After /teams creates the session it navigates to / inside the same
+        // iframe, so every app page used by the tab must allow Microsoft 365
+        // hosts as frame ancestors. Other origins remain blocked.
+        source: "/(.*)",
         headers: [
           {
             key: "Content-Security-Policy",
             value:
-              "frame-ancestors https://teams.microsoft.com https://*.teams.microsoft.com https://*.skype.com https://teams.microsoft.us;",
+              "frame-ancestors 'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.microsoft365.com https://*.office.com https://*.skype.com https://teams.microsoft.us;",
           },
         ],
       },

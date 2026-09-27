@@ -1,16 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 
-// Admins are configured by email address, not by an Azure AD App Role —
-// set ADMIN_EMAILS to a comma-separated list (case-insensitive). Gates
-// /admin/*, the room-management API, and booking approval.
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
-
-function isAdminEmail(email?: string | null): boolean {
-  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+// Microsoft Entra emits assigned application roles in the `roles` token claim.
+// Both Office Management and IT Support are assigned the shared `Admin` role.
+export function isAdminRoleClaim(roles: unknown): boolean {
+  return Array.isArray(roles) && roles.some((role) => role === "Admin");
 }
 
 export const authOptions: NextAuthOptions = {
@@ -30,14 +24,15 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     // On initial sign-in `profile` holds the decoded id_token claims. Azure
-    // AD doesn't always populate `email`, so fall back to the UPN claims,
-    // then stamp isAdmin from the ADMIN_EMAILS allowlist.
+    // AD doesn't always populate `email`, so fall back to the UPN claims.
+    // Admin access comes from the Entra application role claim.
     async jwt({ token, profile }) {
       if (profile) {
         const p = profile as {
           email?: string;
           preferred_username?: string;
           upn?: string;
+          roles?: unknown;
         };
         const email =
           (token.email as string | undefined) ??
@@ -45,7 +40,7 @@ export const authOptions: NextAuthOptions = {
           p.preferred_username ??
           p.upn;
         if (email) token.email = email;
-        token.isAdmin = isAdminEmail(email);
+        token.isAdmin = isAdminRoleClaim(p.roles);
       }
       return token;
     },

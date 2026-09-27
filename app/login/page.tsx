@@ -4,9 +4,10 @@ import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   return (
-    <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
-      <div className="w-full max-w-sm rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-col space-y-1.5 p-6 text-center">
+    <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/30 p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,0,0,0.07),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(0,0,0,0.05),transparent_30%)]" />
+      <div className="relative w-full max-w-md rounded-2xl border bg-card text-card-foreground shadow-xl">
+        <div className="border-b p-7 text-center sm:p-8">
           <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -25,17 +26,20 @@ export default function LoginPage() {
               <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Fitcorpora Office Workspace
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">
             Fitcorpora Room Booking
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Masuk dengan akun Microsoft kantor Anda untuk melanjutkan.
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+            Kelola jadwal ruang meeting kantor dengan akun Microsoft Anda.
           </p>
         </div>
-        <div className="p-6 pt-0">
+        <div className="space-y-4 p-7 sm:p-8">
           <button
             onClick={() => signIn("azure-ad", { callbackUrl: "/" })}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <svg viewBox="0 0 21 21" className="h-4 w-4" aria-hidden="true">
               <rect x="1" y="1" width="9" height="9" fill="#f25022" />
@@ -45,6 +49,9 @@ export default function LoginPage() {
             </svg>
             Login dengan Microsoft
           </button>
+          <p className="text-center text-xs leading-5 text-muted-foreground">
+            Akses ini hanya tersedia untuk akun internal yang terdaftar di Microsoft Entra ID.
+          </p>
         </div>
       </div>
     </main>

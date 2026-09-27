@@ -9,6 +9,7 @@ import {
   toMinutes,
 } from "@/lib/timeSlots";
 import type { Booking, Room } from "@/lib/types";
+import AttendeePicker from "./AttendeePicker";
 
 const inputClass =
   "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
@@ -33,6 +34,7 @@ export default function AdminBookingModal({
   const [endTime, setEndTime] = useState("10:00");
   const [bookerName, setBookerName] = useState("");
   const [bookerEmail, setBookerEmail] = useState("");
+  const [attendeeEmails, setAttendeeEmails] = useState<string[]>([]);
   const [purpose, setPurpose] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -70,6 +72,7 @@ export default function AdminBookingModal({
           purpose,
           bookerName: bookerName.trim(),
           bookerEmail: bookerEmail.trim(),
+          attendeeEmails,
           isOvertime,
           overtimeNote: "",
           forceApproved: true,
@@ -202,6 +205,11 @@ export default function AdminBookingModal({
               placeholder="Rapat tim, presentasi, dll."
               className="flex w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={labelClass}>Peserta Meeting (opsional)</label>
+            <AttendeePicker value={attendeeEmails} onChange={setAttendeeEmails} disabled={submitting} />
           </div>
 
           {error && (

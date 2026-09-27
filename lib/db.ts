@@ -96,8 +96,12 @@ function ensureSchema(): Promise<void> {
           reminder_sent  boolean NOT NULL DEFAULT false,
           is_overtime    boolean NOT NULL DEFAULT false,
           overtime_note  text NOT NULL DEFAULT '',
+          attendee_emails text[] NOT NULL DEFAULT '{}',
           graph_event_id text
         );
+
+        ALTER TABLE bookings
+          ADD COLUMN IF NOT EXISTS attendee_emails text[] NOT NULL DEFAULT '{}';
 
         CREATE INDEX IF NOT EXISTS bookings_room_date_idx
           ON bookings (room_id, date);
@@ -174,6 +178,7 @@ type BookingRow = {
   reminder_sent: boolean;
   is_overtime: boolean;
   overtime_note: string;
+  attendee_emails: string[];
   graph_event_id: string | null;
 };
 
@@ -199,6 +204,7 @@ function toBooking(row: BookingRow): Booking {
     purpose: row.purpose,
     bookerName: row.booker_name,
     bookerEmail: row.booker_email,
+    attendeeEmails: row.attendee_emails ?? [],
     createdAt: row.created_at,
     status: row.status === "pending" ? "pending" : "approved",
     reminderSent: row.reminder_sent,
@@ -211,7 +217,7 @@ function toBooking(row: BookingRow): Booking {
 const ROOM_COLS =
   "id, name, location, capacity, requires_approval, facilities, images";
 const BOOKING_COLS =
-  "id, room_id, date, start_time, end_time, purpose, booker_name, booker_email, created_at, status, reminder_sent, is_overtime, overtime_note, graph_event_id";
+  "id, room_id, date, start_time, end_time, purpose, booker_name, booker_email, created_at, status, reminder_sent, is_overtime, overtime_note, attendee_emails, graph_event_id";
 
 export async function getRooms(): Promise<Room[]> {
   const rows = await query<RoomRow>(
@@ -415,6 +421,7 @@ export function createBooking(
         purpose: input.purpose,
         bookerName: input.bookerName,
         bookerEmail: input.bookerEmail,
+        attendeeEmails: input.attendeeEmails ?? [],
         isOvertime: input.isOvertime,
         overtimeNote: input.overtimeNote,
         id: crypto.randomUUID(),
@@ -442,7 +449,7 @@ export function createBooking(
 
       await client.query(
         `INSERT INTO bookings (${BOOKING_COLS})
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
         [
           booking.id,
           booking.roomId,
@@ -457,6 +464,7 @@ export function createBooking(
           booking.reminderSent,
           booking.isOvertime,
           booking.overtimeNote,
+          booking.attendeeEmails,
           booking.graphEventId ?? null,
         ]
       );
@@ -496,6 +504,7 @@ export function updateBooking(
     // The name is what the tablet display shows.
     bookerName?: string;
     bookerEmail?: string;
+    attendeeEmails?: string[];
   }
 ): Promise<Booking> {
   return withLock(async () => {
@@ -566,6 +575,7 @@ export function updateBooking(
           input.bookerEmail !== undefined
             ? input.bookerEmail.trim()
             : existingBooking.bookerEmail,
+        attendeeEmails: input.attendeeEmails ?? existingBooking.attendeeEmails,
       };
 
       // Keep an existing calendar invite in sync: drop the stale one and
@@ -591,7 +601,8 @@ export function updateBooking(
       await client.query(
         `UPDATE bookings
          SET date = $2, start_time = $3, end_time = $4, purpose = $5,
-             booker_name = $6, booker_email = $7, graph_event_id = $8
+             booker_name = $6, booker_email = $7, attendee_emails = $8,
+             graph_event_id = $9
          WHERE id = $1`,
         [
           id,
@@ -601,6 +612,7 @@ export function updateBooking(
           updated.purpose,
           updated.bookerName,
           updated.bookerEmail,
+          updated.attendeeEmails,
           updated.graphEventId ?? null,
         ]
       );

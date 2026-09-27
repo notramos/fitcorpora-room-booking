@@ -68,6 +68,23 @@ export async function POST(request: NextRequest) {
     ? (body.bookerEmail?.trim() ?? "")
     : (session.user?.email ?? "");
 
+  const attendeeEmails = Array.isArray(body.attendeeEmails)
+    ? Array.from(
+        new Set(
+          body.attendeeEmails
+            .map((email) => String(email).trim().toLowerCase())
+            .filter(Boolean)
+        )
+      ).slice(0, 20)
+    : [];
+
+  if (attendeeEmails.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    return NextResponse.json(
+      { error: "Ada email peserta yang tidak valid." },
+      { status: 400 }
+    );
+  }
+
   const input: CreateBookingInput & { forceApproved?: boolean } = {
     roomId: body.roomId!,
     date: body.date!,
@@ -76,6 +93,7 @@ export async function POST(request: NextRequest) {
     purpose: body.purpose ?? "",
     bookerName,
     bookerEmail,
+    attendeeEmails,
     isOvertime: !!body.isOvertime,
     overtimeNote: body.overtimeNote ?? "",
     // Only an admin can confirm on creation; ignored for everyone else.

@@ -2,7 +2,7 @@
 # managed Postgres (RDS) — no bundled `db` service. DATABASE_URL and
 # DATABASE_SSL=true come from .env.prod.
 #
-#   cp .env.prod.example .env.prod   # fill AZURE_*, NEXTAUTH_*, ADMIN_EMAILS, DATABASE_URL, DATABASE_SSL=true
+#   cp .env.prod.example .env.prod   # fill AZURE_*, NEXTAUTH_*, DATABASE_URL, DATABASE_SSL=true
 #   docker compose -f docker-compose.prod.yml build
 #   docker compose -f docker-compose.prod.yml up -d
 #
@@ -22,6 +22,8 @@ services:
     container_name: room-booking-system
     expose:
       - "3000"
+    volumes:
+      - room_uploads:/app/public/uploads/rooms
     env_file: ./.env.prod
     restart: unless-stopped
     networks:
@@ -37,3 +39,7 @@ services:
 networks:
   traefik-public:
     external: true
+
+volumes:
+  room_uploads:
+    name: room-booking-uploads

@@ -26,6 +26,8 @@ export interface Booking {
   purpose: string;
   bookerName: string;
   bookerEmail: string;
+  // Optional Microsoft 365 attendees who should receive the calendar/Teams invite.
+  attendeeEmails: string[];
   createdAt: string; // ISO timestamp
   // "approved" for open rooms (default) or once an approver signs off;
   // "pending" holds the slot but isn't confirmed yet. Rejecting a pending

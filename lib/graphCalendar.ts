@@ -9,7 +9,7 @@ import type { Booking, Room } from "./types";
 // Grant admin consent).
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
-async function getGraphAppToken(): Promise<string> {
+export async function getGraphAppToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
     return cachedToken.value;
   }
@@ -69,6 +69,10 @@ export async function createCalendarEvent(
       timeZone: "Asia/Jakarta",
     },
     location: { displayName: `${room.name} (${room.location})` },
+    attendees: booking.attendeeEmails.map((email) => ({
+      type: "required",
+      emailAddress: { address: email },
+    })),
     isOnlineMeeting: true,
     onlineMeetingProvider: "teamsForBusiness",
   };

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
+import MobileBottomNav from "./MobileBottomNav";
 import type { Booking, Room } from "@/lib/types";
 
 interface ApprovalItem {
@@ -63,7 +64,7 @@ export default function ApprovalQueue({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-10">
+    <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-28 sm:px-6 sm:py-10 sm:pb-10">
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/"
@@ -82,12 +83,13 @@ export default function ApprovalQueue({
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Cari &amp; Booking Ruangan
+          <span className="hidden min-[390px]:inline">Cari &amp; Booking Ruangan</span>
+          <span className="min-[390px]:hidden">Beranda</span>
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/admin/bookings"
-            className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="hidden h-9 items-center justify-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:inline-flex"
           >
             Kelola Semua Booking
           </Link>
@@ -95,13 +97,22 @@ export default function ApprovalQueue({
         </div>
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Office management
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Persetujuan Booking
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Booking untuk ruangan terbatas yang menunggu persetujuan Anda.
-        </p>
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tinjau permintaan booking ruangan terbatas dan overtime.
+          </p>
+        </div>
+        <div className="flex items-center justify-between rounded-xl border bg-amber-50 px-4 py-3 text-amber-900 shadow-sm dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200 sm:block sm:min-w-40">
+          <p className="text-xs font-medium uppercase tracking-wide">Menunggu tindakan</p>
+          <p className="text-2xl font-semibold tabular-nums sm:mt-1">{items.length}</p>
+        </div>
       </div>
 
       {error && (
@@ -111,15 +122,21 @@ export default function ApprovalQueue({
       )}
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Tidak ada booking yang menunggu persetujuan.
-        </p>
+        <div className="rounded-2xl border border-dashed bg-card px-5 py-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <span className="text-xl" aria-hidden="true">✓</span>
+          </div>
+          <p className="mt-4 font-semibold">Semua pengajuan sudah diproses</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pengajuan baru akan otomatis muncul di halaman ini.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {items.map(({ booking, room }) => (
             <div
               key={booking.id}
-              className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-4 rounded-2xl border border-t-4 border-t-amber-400 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:border-l-4 sm:border-t sm:border-l-amber-400 sm:p-5"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -153,18 +170,18 @@ export default function ApprovalQueue({
                 )}
               </div>
 
-              <div className="flex shrink-0 gap-2">
+              <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:flex-col md:flex-row">
                 <button
                   onClick={() => act(booking.id, "reject")}
                   disabled={busyId === booking.id}
-                  className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border bg-background px-4 text-sm font-semibold shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 sm:h-10 sm:rounded-md"
                 >
                   Tolak
                 </button>
                 <button
                   onClick={() => act(booking.id, "approve")}
                   disabled={busyId === booking.id}
-                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 sm:h-10 sm:rounded-md"
                 >
                   Setujui
                 </button>
@@ -173,6 +190,7 @@ export default function ApprovalQueue({
           ))}
         </div>
       )}
+      <MobileBottomNav />
     </div>
   );
 }

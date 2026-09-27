@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import { verifyTeamsToken } from "@/lib/teamsAuth";
+import { isAdminRoleClaim } from "@/lib/auth";
 
 const MAX_AGE = 30 * 24 * 60 * 60; // 30 days, matches next-auth's default
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       sub: identity.oid,
       name: identity.name,
       email: identity.preferredUsername,
+      isAdmin: isAdminRoleClaim(identity.roles),
     },
     secret: process.env.NEXTAUTH_SECRET!,
     maxAge: MAX_AGE,

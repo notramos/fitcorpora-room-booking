@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import RealtimeClock from "./RealtimeClock";
 import BookingModal from "./BookingModal";
 import StatusBadge from "./StatusBadge";
+import MobileBottomNav from "./MobileBottomNav";
 import { computeStatus } from "@/lib/roomStatus";
 import {
   nowMinutesInAppTimezone,
@@ -94,7 +95,7 @@ export default function RoomDetail({
     <div className="flex flex-1 flex-col">
       {/* top bar */}
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -121,9 +122,26 @@ export default function RoomDetail({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-6 py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-5 pb-40 sm:space-y-6 sm:px-6 sm:py-8 sm:pb-10">
         {/* hero */}
-        <section className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
+        <section className="overflow-hidden rounded-2xl border bg-card p-5 text-card-foreground shadow-sm sm:rounded-xl sm:p-6">
+          <div className="-mx-5 -mt-5 mb-5 aspect-[16/8] overflow-hidden bg-muted sm:hidden">
+            {room.images[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element -- room images are managed by admins.
+              <img
+                src={room.images[0]}
+                alt={`Foto ${room.name}`}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = "/room-placeholder.svg";
+                }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- local placeholder asset.
+              <img src="/room-placeholder.svg" alt="" className="h-full w-full object-cover" />
+            )}
+          </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="mb-2">
@@ -189,7 +207,7 @@ export default function RoomDetail({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden shrink-0 items-center gap-2 sm:flex">
               <Link
                 href={`/display/${room.id}`}
                 target="_blank"
@@ -264,13 +282,13 @@ export default function RoomDetail({
 
         {/* today's schedule */}
         <section className="rounded-xl border bg-card text-card-foreground shadow-sm">
-          <div className="border-b px-6 py-4">
+          <div className="border-b px-4 py-4 sm:px-6">
             <h2 className="text-base font-semibold tracking-tight">
               Jadwal Hari Ini
             </h2>
             <p className="text-sm text-muted-foreground">{formatDateLong(today)}</p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {todaysSchedule.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Belum ada booking hari ini.
@@ -285,7 +303,7 @@ export default function RoomDetail({
                   return (
                     <li
                       key={b.id}
-                      className={`flex items-start gap-4 rounded-lg border px-4 py-3 ${
+                      className={`grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 rounded-xl border px-3 py-3 sm:flex sm:items-start sm:gap-4 sm:px-4 ${
                         isPending
                           ? "border-dashed border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
                           : isCurrent
@@ -293,7 +311,7 @@ export default function RoomDetail({
                             : "bg-muted/40"
                       } ${isPast ? "opacity-55" : ""}`}
                     >
-                      <span className="w-28 shrink-0 font-mono text-sm font-medium tabular-nums">
+                      <span className="shrink-0 font-mono text-xs font-semibold tabular-nums sm:w-28 sm:text-sm sm:font-medium">
                         {b.startTime}–{b.endTime}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -305,17 +323,17 @@ export default function RoomDetail({
                         </p>
                       </div>
                       {isPending && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        <span className="col-span-2 w-fit shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300 sm:col-span-1">
                           Menunggu Persetujuan
                         </span>
                       )}
                       {isCurrent && (
-                        <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                        <span className="col-span-2 w-fit shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground sm:col-span-1">
                           Berlangsung
                         </span>
                       )}
                       {isPast && (
-                        <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="col-span-2 shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:col-span-1">
                           Selesai
                         </span>
                       )}
@@ -329,7 +347,7 @@ export default function RoomDetail({
 
         {/* upcoming bookings */}
         <section className="rounded-xl border bg-card text-card-foreground shadow-sm">
-          <div className="border-b px-6 py-4">
+          <div className="border-b px-4 py-4 sm:px-6">
             <h2 className="text-base font-semibold tracking-tight">
               Booking Mendatang
             </h2>
@@ -337,7 +355,7 @@ export default function RoomDetail({
               Jadwal untuk hari-hari berikutnya
             </p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {upcomingByDate.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Belum ada booking mendatang.
@@ -353,13 +371,13 @@ export default function RoomDetail({
                       {list.map((b) => (
                         <li
                           key={b.id}
-                          className={`flex items-start gap-4 rounded-lg border px-4 py-3 ${
+                          className={`grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 rounded-xl border px-3 py-3 sm:flex sm:items-start sm:gap-4 sm:px-4 ${
                             b.status === "pending"
                               ? "border-dashed border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
                               : "bg-muted/40"
                           }`}
                         >
-                          <span className="w-28 shrink-0 font-mono text-sm font-medium tabular-nums">
+                          <span className="shrink-0 font-mono text-xs font-semibold tabular-nums sm:w-28 sm:text-sm sm:font-medium">
                             {b.startTime}–{b.endTime}
                           </span>
                           <div className="min-w-0 flex-1">
@@ -371,7 +389,7 @@ export default function RoomDetail({
                             </p>
                           </div>
                           {b.status === "pending" && (
-                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            <span className="col-span-2 w-fit shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300 sm:col-span-1">
                               Menunggu Persetujuan
                             </span>
                           )}
@@ -393,6 +411,16 @@ export default function RoomDetail({
           onBooked={() => refetch()}
         />
       )}
+      <div className="fixed inset-x-4 bottom-[5.4rem] z-30 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg"
+        >
+          Booking {room.name}
+        </button>
+      </div>
+      <MobileBottomNav />
     </div>
   );
 }
